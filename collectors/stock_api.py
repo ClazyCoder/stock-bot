@@ -34,13 +34,3 @@ class StockDataCollector:
                 print(f"Error scanning {key} sector: {e}")
                 continue
         return main_leaders
-
-    def save_data(self):
-        self.data.to_csv('stock_data.csv')
-        print("Stock data saved to stock_data.csv")
-
-    def load_data(self):
-        self.data = pd.read_csv('stock_data.csv', header=[
-                                0, 1], index_col=[0, 1])
-        self.data.index.names = ['Date', 'Ticker']
-        return self.data
