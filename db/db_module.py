@@ -8,7 +8,7 @@ from typing import List
 load_dotenv()
 
 
-class STOCK_DBModule(IDBModule):
+class SQLiteDBModule(IDBModule):
     def __init__(self):
         self.engine = create_engine(os.getenv('STOCK_DATABASE_URL'))
         Base.metadata.create_all(self.engine)
@@ -40,3 +40,13 @@ class STOCK_DBModule(IDBModule):
         Get stock data from the database.
         """
         return self.session.query(Stock).filter(Stock.ticker == ticker).all()
+
+
+class MySQLDBModule(IDBModule):
+    # TODO: Implement MySQL DBModule
+    pass
+
+
+class PostgreSQLDBModule(IDBModule):
+    # TODO: Implement PostgreSQL DBModule
+    pass
