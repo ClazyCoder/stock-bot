@@ -7,23 +7,15 @@ class StockPrice(BaseModel):
     """
     Stock Chat Data for OHLCV
     """
-    date: datetime
-    close: float = Field(..., description="Close Price")
-    open: Optional[float] = None
-    high: Optional[float] = None
-    low: Optional[float] = None
+    ticker: str = Field(..., description="Ticker")
+    date: datetime = Field(default_factory=datetime.now, description="Date")
+    trade_date: datetime = Field(
+        default_factory=datetime.now, description="Trade Date")
+    close_price: float = Field(..., description="Close Price")
+    open_price: float = Field(..., description="Open Price")
+    high_price: float = Field(..., description="High Price")
+    low_price: float = Field(..., description="Low Price")
     volume: int = Field(0, description="Volume")
-
-
-class CompanyInfo(BaseModel):
-    """
-    Company Fundamental Information
-    """
-    ticker: str
-    name: str
-    sector: str
-    industry: Optional[str] = None
-    market_cap: Optional[int] = None
 
 
 class AnalysisReport(BaseModel):

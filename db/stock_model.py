@@ -1,5 +1,9 @@
 from sqlalchemy import Column, Integer, String, DateTime, Float
-from db.db_module import Base
+from sqlalchemy.orm import DeclarativeBase
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 class Stock(Base):
