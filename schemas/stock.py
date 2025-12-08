@@ -8,7 +8,6 @@ class StockPrice(BaseModel):
     Stock Chat Data for OHLCV
     """
     ticker: str = Field(..., description="Ticker")
-    date: datetime = Field(default_factory=datetime.now, description="Date")
     trade_date: datetime = Field(
         default_factory=datetime.now, description="Trade Date")
     close_price: float = Field(..., description="Close Price")
@@ -16,6 +15,10 @@ class StockPrice(BaseModel):
     high_price: float = Field(..., description="High Price")
     low_price: float = Field(..., description="Low Price")
     volume: int = Field(0, description="Volume")
+    created_at: datetime = Field(
+        default_factory=datetime.now, description="Created At")
+    updated_at: datetime = Field(
+        default_factory=datetime.now, description="Updated At")
 
 
 class AnalysisReport(BaseModel):
