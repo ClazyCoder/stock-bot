@@ -12,7 +12,8 @@ load_dotenv()
 
 class SQLiteDBModule(IDBModule):
     def __init__(self):
-        self.engine = create_engine(os.getenv('STOCK_DATABASE_URL'))
+        self.engine = create_engine(
+            os.getenv('STOCK_DATABASE_URL', 'sqlite:///stock.db'))
         Base.metadata.create_all(self.engine)
         self.session = Session(self.engine)
 
@@ -57,11 +58,11 @@ class SQLiteDBModule(IDBModule):
             return None
 
 
-class MySQLDBModule(IDBModule):
-    # TODO: Implement MySQL DBModule
+class VectorDBModule():
+    # TODO: Implement VectorDBModule
     pass
 
 
-class PostgreSQLDBModule(IDBModule):
-    # TODO: Implement PostgreSQL DBModule
+class UserDBModule():
+    # TODO: Implement UserDBModule
     pass
