@@ -1,9 +1,8 @@
 import yfinance as yf
 import pandas as pd
 import asyncio
-from interfaces.stock_interface import IStockProvider
-from schemas.stock import StockPrice
-from typing import List
+from interfaces import IStockProvider
+from schemas import StockPrice
 
 main_sectors = {
     'technology': '기술 💻',

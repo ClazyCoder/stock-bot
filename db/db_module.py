@@ -2,8 +2,8 @@ from sqlalchemy import create_engine, Session
 from dotenv import load_dotenv
 import os
 from db.stock_model import Stock, Base
-from schemas.stock import StockPrice
-from interfaces.db_interface import IDBModule
+from schemas import StockPrice
+from interfaces import IDBModule
 from typing import List
 from sqlalchemy.exc import IntegrityError
 import asyncio
