@@ -2,6 +2,7 @@
 from interfaces.db_interface import IDBModule
 from interfaces.stock_interface import IStockProvider
 from schemas.stock import StockPrice
+import asyncio
 
 
 class StockDataService:
@@ -13,7 +14,4 @@ class StockDataService:
         # API에서 데이터 수집
         stock_data = await self.collector.fetch_stock_price(ticker)
         # DB에 저장
-        self.db_module.insert_stock_data(stock_data)
-
-    async def get_stock_data(self, ticker: str):
-        return self.db_module.get_stock_data(ticker)
+        await self.db_module.insert_stock_data(stock_data)
