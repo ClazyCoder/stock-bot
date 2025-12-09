@@ -5,11 +5,11 @@ class TelegramBot(IBot):
     def __init__(self, token: str):
         pass
 
-    def send_message(self, message: str):
+    async def send_message(self, message: str):
         pass
 
-    def start(self):
+    async def start(self):
         pass
 
-    def stop(self):
+    async def stop(self):
         pass
