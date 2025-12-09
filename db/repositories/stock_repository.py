@@ -4,7 +4,7 @@ from typing import Callable
 import logging
 import asyncio
 from schemas.stock import StockPrice
-from db.stock_model import Stock
+from db.models import Stock
 from typing import List
 from sqlalchemy.exc import IntegrityError
 
