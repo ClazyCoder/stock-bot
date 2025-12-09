@@ -8,15 +8,14 @@ from interfaces import IDBModule, IStockProvider
 
 sql_db_module = SQLDBModule()
 stock_data_collector = StockDataCollector()
-stock_data_service = StockDataService(stock_data_collector, sql_db_module)
 
 
-def get_db_session() -> Session:
-    session = sql_db_module.get_session()
+async def get_db_session() -> Session:
+    session = await sql_db_module.get_session()
     try:
         yield session
     finally:
-        session.close()
+        await session.close()
 
 
 def get_db_module() -> IDBModule:

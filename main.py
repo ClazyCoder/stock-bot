@@ -4,7 +4,7 @@ import uvicorn
 import logging
 import os
 import dotenv
-from routers import v1
+import routers.v1 as v1
 
 dotenv.load_dotenv()
 

@@ -1,19 +1,24 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
 
 
 class StockSymbol(BaseModel):
+    """
+    Schema representing a stock ticker symbol for use in API requests and responses.
+    """
     ticker: str = Field(..., description="Ticker")
 
 
 class StockRequest(StockSymbol):
-    ticker: str = Field(..., description="Ticker")
+    """
+    Schema for requests involving a stock ticker symbol, such as fetching price or analysis data.
+    """
+    pass
 
 
 class StockPrice(StockSymbol):
     """
-    Stock Chat Data for OHLCV
+    Stock Chart Data (OHLCV)
     """
     trade_date: datetime = Field(
         default_factory=datetime.now, description="Trade Date")
@@ -30,7 +35,7 @@ class StockPrice(StockSymbol):
 
 class AnalysisReport(BaseModel):
     """
-    Final Result DTO
+    Final Result Data Transfer Object
     """
     ticker: str
     created_at: datetime = Field(default_factory=datetime.now)
