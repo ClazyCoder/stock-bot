@@ -1,25 +1,26 @@
 from fastapi import Depends
-from db.db_module import SQLDBModule
+from db.db_module import StockDBModule
 from collectors.stock_api import StockDataCollector
 from services.stock_data_service import StockDataService
 from sqlalchemy.orm import Session
 from interfaces import IDBModule, IStockProvider
+from db.connection import SessionLocal
+from typing import Generator
+
+stock_db_module: IDBModule = StockDBModule(session_local=SessionLocal)
+stock_data_collector: IStockProvider = StockDataCollector()
 
 
-sql_db_module = SQLDBModule()
-stock_data_collector = StockDataCollector()
-
-
-async def get_db_session() -> Session:
-    session = await sql_db_module.get_session()
+async def get_db_session() -> Generator[Session, None, None]:
+    session = SessionLocal()
     try:
         yield session
     finally:
-        await session.close()
+        session.close()
 
 
 def get_db_module() -> IDBModule:
-    return sql_db_module
+    return stock_db_module
 
 
 def get_collector() -> IStockProvider:

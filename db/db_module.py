@@ -1,5 +1,5 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session
+from typing import Callable
 from dotenv import load_dotenv
 import os
 from db.stock_model import Stock, Base
@@ -13,20 +13,16 @@ import logging
 load_dotenv()
 
 
-class SQLDBModule(IDBModule):
-    def __init__(self):
-        self.engine = create_engine(
-            os.getenv('STOCK_DATABASE_URL', 'sqlite:///stock.db'))
-        Base.metadata.create_all(self.engine)
-        self.sessionLocal = sessionmaker(
-            autocommit=False, autoflush=False, bind=self.engine)
+class StockDBModule(IDBModule):
+    def __init__(self, session_local: Callable[[], Session]):
+        self.session_local = session_local
         self.logger = logging.getLogger(__name__)
 
     async def get_session(self):
-        return self.sessionLocal()
+        return self.session_local()
 
     def _insert_sync(self, stock_data: Stock):
-        with self.sessionLocal() as session:
+        with self.session_local() as session:
             try:
                 session.add(stock_data)
                 session.commit()
