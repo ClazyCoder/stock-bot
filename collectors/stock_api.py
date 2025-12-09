@@ -17,7 +17,7 @@ class StockDataCollector(IStockProvider):
     def __init__(self):
         pass
 
-    async def get_market_leaders(self, top: int = 3):
+    def get_market_leaders(self, top: int = 3):
         '''
         Get the top N stocks in each sector.
         Returns a dictionary with the sector name as the key and the top N stocks as the value.
