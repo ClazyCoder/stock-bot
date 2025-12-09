@@ -4,6 +4,7 @@ import uvicorn
 import logging
 import os
 import dotenv
+from routers import v1
 
 dotenv.load_dotenv()
 
@@ -22,6 +23,7 @@ async def lifespan(app: FastAPI):
     logger.info("Stopping stock-bot")
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(v1.router, prefix="/api")
 
 if __name__ == "__main__":
     os.makedirs('logs', exist_ok=True)
