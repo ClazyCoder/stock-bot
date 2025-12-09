@@ -16,10 +16,12 @@ class StockDataService:
             self.logger.info(f"Collected stock data for {ticker}")
         else:
             self.logger.error(f"Failed to collect stock data for {ticker}")
-            return
+            return False
         # DB에 저장
         result = await self.db_module.insert_stock_data(stock_data)
         if result:
             self.logger.info(f"Saved stock data for {ticker}")
         else:
             self.logger.error(f"Failed to save stock data for {ticker}")
+            return False
+        return True

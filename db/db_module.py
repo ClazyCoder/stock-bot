@@ -8,6 +8,7 @@ from interfaces import IDBModule
 from typing import List
 from sqlalchemy.exc import IntegrityError
 import asyncio
+import logging
 
 load_dotenv()
 
@@ -18,6 +19,7 @@ class SQLDBModule(IDBModule):
             os.getenv('STOCK_DATABASE_URL', 'sqlite:///stock.db'))
         Base.metadata.create_all(self.engine)
         self.session = Session(self.engine)
+        self.logger = logging.getLogger(__name__)
 
     async def get_session(self):
         return self.session
@@ -29,7 +31,10 @@ class SQLDBModule(IDBModule):
             return True
         except IntegrityError as e:
             self.session.rollback()
-            print(f"Error inserting stock data: {e}")
+            self.logger.warning(f"Stock data already exists: {e}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Error inserting stock data: {e}")
             return False
 
     async def insert_stock_data(self, stock_data: StockPrice):
