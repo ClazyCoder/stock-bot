@@ -3,11 +3,18 @@ from datetime import datetime
 from typing import Optional
 
 
-class StockPrice(BaseModel):
+class StockSymbol(BaseModel):
+    ticker: str = Field(..., description="Ticker")
+
+
+class StockRequest(StockSymbol):
+    ticker: str = Field(..., description="Ticker")
+
+
+class StockPrice(StockSymbol):
     """
     Stock Chat Data for OHLCV
     """
-    ticker: str = Field(..., description="Ticker")
     trade_date: datetime = Field(
         default_factory=datetime.now, description="Trade Date")
     close_price: float = Field(..., description="Close Price")
