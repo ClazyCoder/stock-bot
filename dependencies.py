@@ -1,5 +1,5 @@
 from fastapi import Depends
-from db.db_module import StockDBModule
+from db.repositories.stock_repository import StockRepository
 from collectors.stock_api import StockDataCollector
 from services.stock_data_service import StockDataService
 from sqlalchemy.orm import Session
@@ -7,7 +7,7 @@ from interfaces import IDBModule, IStockProvider
 from db.connection import SessionLocal
 from typing import Generator
 
-stock_db_module: IDBModule = StockDBModule(session_local=SessionLocal)
+stock_db_module: IDBModule = StockRepository(session_local=SessionLocal)
 stock_data_collector: IStockProvider = StockDataCollector()
 
 

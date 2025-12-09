@@ -1,25 +1,19 @@
+from db.repositories.base import BaseRepository
 from sqlalchemy.orm import Session
 from typing import Callable
-from dotenv import load_dotenv
-import os
-from db.stock_model import Stock, Base
-from schemas import StockPrice
-from interfaces import IDBModule
+import logging
+import asyncio
+from schemas.stock import StockPrice
+from db.stock_model import Stock
 from typing import List
 from sqlalchemy.exc import IntegrityError
-import asyncio
-import logging
-
-load_dotenv()
 
 
-class StockDBModule(IDBModule):
+class StockRepository(BaseRepository):
+
     def __init__(self, session_local: Callable[[], Session]):
-        self.session_local = session_local
+        super().__init__(session_local)
         self.logger = logging.getLogger(__name__)
-
-    async def get_session(self):
-        return self.session_local()
 
     def _insert_sync(self, stock_data: Stock):
         with self.session_local() as session:
@@ -98,13 +92,3 @@ class StockDBModule(IDBModule):
         except Exception as e:
             self.logger.error(f"Error fetching stock data: {e}")
             return []
-
-
-class VectorDBModule():
-    # TODO: Implement VectorDBModule
-    pass
-
-
-class UserDBModule():
-    # TODO: Implement UserDBModule
-    pass
