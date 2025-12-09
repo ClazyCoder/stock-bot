@@ -1,7 +1,5 @@
 # services/stock_data_service.py
 from interfaces import IDBModule, IStockProvider
-from schemas import StockPrice
-import asyncio
 import logging
 
 
