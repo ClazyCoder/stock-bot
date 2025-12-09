@@ -10,17 +10,17 @@ from sqlalchemy.exc import IntegrityError
 load_dotenv()
 
 
-class SQLiteDBModule(IDBModule):
+class SQLDBModule(IDBModule):
     def __init__(self):
         self.engine = create_engine(
             os.getenv('STOCK_DATABASE_URL', 'sqlite:///stock.db'))
         Base.metadata.create_all(self.engine)
         self.session = Session(self.engine)
 
-    def get_session(self):
+    async def get_session(self):
         return self.session
 
-    def insert_stock_data(self, stock_data: StockPrice):
+    async def insert_stock_data(self, stock_data: StockPrice):
         """
         Insert stock data into the database.
         Converts StockPrice (Pydantic) to Stock (SQLAlchemy ORM).
@@ -47,7 +47,7 @@ class SQLiteDBModule(IDBModule):
             print(f"Error inserting stock data: {e}")
             return False
 
-    def get_stock_data(self, ticker: str) -> List[StockPrice] | None:
+    async def get_stock_data(self, ticker: str) -> List[StockPrice] | None:
         """
         Get stock data from the database.
         """
