@@ -1,9 +1,8 @@
 import yfinance as yf
 import pandas as pd
 import asyncio
-from interfaces.stock_interface import IStockProvider
-from schemas.stock import StockPrice
-from typing import List
+from interfaces import IStockProvider
+from schemas import StockPrice
 
 main_sectors = {
     'technology': '기술 💻',
@@ -40,7 +39,11 @@ class StockDataCollector(IStockProvider):
         """
         # Run blocking I/O in a thread pool to avoid blocking the event loop
         loop = asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, lambda: yf.download(ticker, period="1d"))
+        data = await loop.run_in_executor(None,
+                                          # auto_adjust=False to avoid auto-adjusting the data
+                                          lambda: yf.download(
+                                              ticker, period="1d", auto_adjust=False)
+                                          )
 
         # Validate that data is not empty
         if data.empty or len(data) == 0:
@@ -57,9 +60,9 @@ class StockDataCollector(IStockProvider):
         return StockPrice(
             ticker=ticker,
             trade_date=data.index[0],
-            close_price=float(data['Close'].iloc[0]),
-            open_price=float(data['Open'].iloc[0]),
-            high_price=float(data['High'].iloc[0]),
-            low_price=float(data['Low'].iloc[0]),
-            volume=int(data['Volume'].iloc[0])
+            close_price=float(data['Close'].iloc[0].item()),
+            open_price=float(data['Open'].iloc[0].item()),
+            high_price=float(data['High'].iloc[0].item()),
+            low_price=float(data['Low'].iloc[0].item()),
+            volume=int(data['Volume'].iloc[0].item())
         )
