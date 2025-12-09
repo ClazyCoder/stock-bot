@@ -1,7 +1,4 @@
 from db.repositories.base import BaseRepository
-from sqlalchemy.orm import Session
-from typing import Callable
-import logging
 import asyncio
 from schemas.stock import StockPrice
 from db.models import Stock
@@ -10,10 +7,6 @@ from sqlalchemy.exc import IntegrityError
 
 
 class StockRepository(BaseRepository):
-
-    def __init__(self, session_local: Callable[[], Session]):
-        super().__init__(session_local)
-        self.logger = logging.getLogger(__name__)
 
     def _insert_sync(self, stock_data: Stock):
         with self.session_local() as session:
