@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine, Session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 import os
 from db.stock_model import Stock, Base
