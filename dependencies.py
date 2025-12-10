@@ -19,11 +19,15 @@ async def get_db_session() -> Generator[AsyncSession, None, None]:
     try:
         yield session
     finally:
-        session.close()
+        await session.close()
 
 
-def get_stock_repository() -> StockRepository:
-    return stock_repository
+async def get_stock_repository() -> StockRepository:
+    session = AsyncSessionLocal()
+    try:
+        yield StockRepository(session=session)
+    finally:
+        await session.close()
 
 
 def get_collector() -> IStockProvider:
@@ -37,11 +41,8 @@ def get_stock_service(
     return StockDataService(collector=collector, stock_repository=stock_repository)
 
 
-user_repository: UserRepository = UserRepository(session=AsyncSessionLocal())
-
-
-def get_user_repository() -> UserRepository:
-    return user_repository
+def get_user_repository(session: AsyncSession = Depends(get_db_session)) -> UserRepository:
+    return UserRepository(session=session)
 
 
 def get_user_data_service(user_repository: UserRepository = Depends(get_user_repository)) -> UserDataService:

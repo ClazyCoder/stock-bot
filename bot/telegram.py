@@ -4,6 +4,7 @@ from telegram.ext import Application, ContextTypes, CommandHandler
 from telegram import Update
 import logging
 import os
+import secrets
 
 
 class TelegramBot:
@@ -19,13 +20,21 @@ class TelegramBot:
         self.application.add_handler(CommandHandler("auth", self.auth))
 
     async def auth(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_id = str(update.effective_user.id)
-        password = "".join(context.args)
-        if password == os.getenv('TELEGRAM_BOT_PASSWORD'):
-            await self.user_service.register_user("telegram", user_id)
-            await update.message.reply_text("Authentication successful")
-        else:
-            await update.message.reply_text("Authentication failed")
+        try:
+            user_id = str(update.effective_user.id)
+            password = "".join(context.args) if context.args else ""
+            expected_password = os.getenv('TELEGRAM_BOT_PASSWORD', '')
+            if secrets.compare_digest(password, expected_password):
+                result = await self.user_service.register_user("telegram", user_id)
+                if result:
+                    await update.message.reply_text("Authentication successful")
+                else:
+                    await update.message.reply_text("Authentication failed")
+            else:
+                await update.message.reply_text("Authentication failed")
+        except Exception as e:
+            self.logger.error(f"Error during authentication: {e}")
+            await update.message.reply_text("Authentication failed - Internal server error")
 
     async def start(self):
         await self.application.initialize()

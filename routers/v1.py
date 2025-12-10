@@ -36,7 +36,7 @@ async def collect_stock_price(request: StockRequest, stock_service: StockDataSer
     }
 
 
-@router.get(f"/user")
+@router.get("/user")
 async def get_user(provider: str, provider_id: str, user_data_service: UserDataService = Depends(get_user_data_service)):
     user = await user_data_service.get_user(provider, provider_id)
     if user:

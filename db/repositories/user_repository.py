@@ -29,13 +29,19 @@ class UserRepository(BaseRepository):
             return None
 
     async def register_user(self, provider: str, provider_id: str):
-        user = User(provider=provider, provider_id=provider_id,
-                    is_authorized=True)
-        self.session.add(user)
-        await self.session.commit()
-        return True
+        try:
+            user = User(provider=provider, provider_id=provider_id,
+                        is_authorized=True)
+            self.session.add(user)
+            await self.session.commit()
+            return True
+        except Exception as e:
+            self.logger.error(
+                f"Failed to register user (provider: {provider}, provider_id: {provider_id}): {e}")
+            await self.session.rollback()
+            return False
 
-    async def get_authrized_user(self, provider: str, provider_id: str) -> UserDTO | None:
+    async def get_authorized_user(self, provider: str, provider_id: str) -> UserDTO | None:
         stmt = select(User).where(User.provider == provider,
                                   User.provider_id == provider_id,
                                   User.is_authorized == True
@@ -54,5 +60,5 @@ class UserRepository(BaseRepository):
             )
         else:
             self.logger.error(
-                f"Authrized user not found for provider: {provider} and provider_id: {provider_id}")
+                f"Authorized user not found for provider: {provider} and provider_id: {provider_id}")
             return None
