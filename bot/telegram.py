@@ -18,15 +18,13 @@ class TelegramBot:
         self.application.add_handler(CommandHandler("auth", self.auth))
 
     async def auth(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_id = update.effective_user.id
-        password = context.args[0]
+        user_id = str(update.effective_user.id)
+        password = "".join(context.args)
         if password == os.getenv('TELEGRAM_BOT_PASSWORD'):
-            self.dbmodule.register_user("telegram", user_id)
-            context.bot.send_message(
-                chat_id=user_id, text="Authentication successful")
+            await self.dbmodule.register_user("telegram", user_id)
+            await update.message.reply_text("Authentication successful")
         else:
-            context.bot.send_message(
-                chat_id=user_id, text="Authentication failed")
+            await update.message.reply_text("Authentication failed")
 
     async def start(self):
         await self.application.initialize()
