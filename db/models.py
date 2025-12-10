@@ -1,6 +1,7 @@
 # db/db_models.py
-from sqlalchemy import Column, Integer, String, DateTime, Float
-from sqlalchemy.orm import DeclarativeBase, relationship, ForeignKey, UniqueConstraint, Index, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Boolean
+from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.schema import UniqueConstraint, Index
 from datetime import datetime
 
 

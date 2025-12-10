@@ -1,7 +1,8 @@
 # routers/v1.py
-from fastapi import APIRouter
-from dependencies import get_stock_service
+from fastapi import APIRouter, HTTPException
+from dependencies import get_stock_service, get_user_data_service
 from services.stock_data_service import StockDataService
+from services.user_data_service import UserDataService
 from fastapi import Depends
 from schemas import StockRequest
 
@@ -33,3 +34,12 @@ async def collect_stock_price(request: StockRequest, stock_service: StockDataSer
         "message": message,
         "ticker": request.ticker,
     }
+
+
+@router.get(f"/user")
+async def get_user(provider: str, provider_id: str, user_data_service: UserDataService = Depends(get_user_data_service)):
+    user = await user_data_service.get_user(provider, provider_id)
+    if user:
+        return user
+    else:
+        raise HTTPException(status_code=404, detail="User not found")

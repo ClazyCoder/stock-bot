@@ -1,16 +1,18 @@
 # db/connection.py
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from db.models import Base, Stock, User, Subscription
-import asyncio
+from db.models import Base
 
 
-DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite+aiosqlite::///stock.db')
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///stock.db')
 
 engine = create_async_engine(DATABASE_URL, echo=True, connect_args={
     "check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 
-asyncio.run(Base.metadata.create_all(bind=engine))
+
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

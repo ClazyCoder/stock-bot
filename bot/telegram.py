@@ -1,4 +1,5 @@
-from interfaces import IBotDBModule, IStockProvider
+from services.user_data_service import UserDataService
+from services.stock_data_service import StockDataService
 from telegram.ext import Application, ContextTypes, CommandHandler
 from telegram import Update
 import logging
@@ -6,10 +7,10 @@ import os
 
 
 class TelegramBot:
-    def __init__(self, token: str, dbmodule: IBotDBModule, collector: IStockProvider):
+    def __init__(self, token: str, user_service: UserDataService, stock_service: StockDataService):
         self.application = Application.builder().token(token).build()
-        self.dbmodule = dbmodule
-        self.collector = collector
+        self.user_service = user_service
+        self.stock_service = stock_service
         self._register_handlers()
         self.logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ class TelegramBot:
         user_id = str(update.effective_user.id)
         password = "".join(context.args)
         if password == os.getenv('TELEGRAM_BOT_PASSWORD'):
-            await self.dbmodule.register_user("telegram", user_id)
+            await self.user_service.register_user("telegram", user_id)
             await update.message.reply_text("Authentication successful")
         else:
             await update.message.reply_text("Authentication failed")
