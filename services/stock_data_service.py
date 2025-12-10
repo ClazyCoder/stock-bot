@@ -1,13 +1,13 @@
 # services/stock_data_service.py
-from interfaces import IDBModule, IStockProvider
+from interfaces import IStockDBModule, IStockProvider
 import logging
 
 
 class StockDataService:
-    def __init__(self, collector: IStockProvider, db: IDBModule):
+    def __init__(self, collector: IStockProvider, db_module: IStockDBModule):
         self.logger = logging.getLogger(__name__)
         self.collector = collector
-        self.db_module = db
+        self.db_module = db_module
 
     async def collect_and_save(self, ticker: str):
         # API에서 데이터 수집
