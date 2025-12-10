@@ -1,9 +1,8 @@
-from typing import Callable
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 
 
 class BaseRepository:
-    def __init__(self, session_local: Callable[[], Session]):
-        self.session_local = session_local
+    def __init__(self, session_local: AsyncSession):
+        self.session = session_local
         self.logger = logging.getLogger(__name__)

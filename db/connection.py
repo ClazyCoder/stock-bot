@@ -1,19 +1,19 @@
 # db/connection.py
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from db.models import Base
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from db.models import Base, Stock, User, Subscription
+import asyncio
 
 
-DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///stock.db')
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite+aiosqlite::///stock.db')
 
-engine = create_engine(DATABASE_URL, connect_args={
-                       "check_same_thread": False} if "sqlite" in DATABASE_URL else {})
+engine = create_async_engine(DATABASE_URL, echo=True, connect_args={
+    "check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 
-Base.metadata.create_all(engine)
+asyncio.run(Base.metadata.create_all(bind=engine))
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
 )
