@@ -1,5 +1,4 @@
 import yfinance as yf
-import pandas as pd
 import asyncio
 from interfaces import IStockProvider
 from schemas import StockPrice
@@ -38,7 +37,7 @@ class StockDataCollector(IStockProvider):
         Runs blocking yf.download() in a thread pool to avoid blocking the event loop.
         """
         # Run blocking I/O in a thread pool to avoid blocking the event loop
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         data = await loop.run_in_executor(None,
                                           # auto_adjust=False to avoid auto-adjusting the data
                                           lambda: yf.download(
