@@ -2,8 +2,7 @@ from db.repositories.base import BaseRepository
 from db.models import User
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from schemas.user import UserDTO
-from schemas.user import SubscriptionDTO
+from schemas.user import UserDTO, SubscriptionDTO
 
 
 class UserRepository(BaseRepository):
