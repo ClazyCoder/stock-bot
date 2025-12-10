@@ -4,10 +4,10 @@ from interfaces import IStockProvider
 from schemas import StockPrice
 
 main_sectors = {
-    'technology': '기술 💻',
-    'financial-services': '금융 💰',
-    'healthcare': '헬스케어 🏥',
-    'consumer-cyclical': '소비재 🛍️'
+    'technology': 'Technology 💻',
+    'financial-services': 'Financial Services 💰',
+    'healthcare': 'Healthcare 🏥',
+    'consumer-cyclical': 'Consumer Cyclical 🛍️'
 }
 
 

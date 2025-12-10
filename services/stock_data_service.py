@@ -11,14 +11,14 @@ class StockDataService:
         self.stock_repository = stock_repository
 
     async def collect_and_save(self, ticker: str):
-        # API에서 데이터 수집
+        # Collect data from API
         stock_data = await self.collector.fetch_stock_price(ticker)
         if stock_data:
             self.logger.info(f"Collected stock data for {ticker}")
         else:
             self.logger.error(f"Failed to collect stock data for {ticker}")
             return False
-        # DB에 저장
+        # Save to database
         result = await self.stock_repository.insert_stock_data(stock_data)
         if result:
             self.logger.info(f"Saved stock data for {ticker}")
