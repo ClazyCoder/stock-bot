@@ -1,8 +1,8 @@
-from interfaces.bot_interface import IBot
+from interfaces import IDBModule, IStockProvider
 
 
-class TelegramBot(IBot):
-    def __init__(self, token: str):
+class TelegramBot():
+    def __init__(self, token: str, dbmodule: IDBModule, collector: IStockProvider):
         pass
 
     async def send_message(self, message: str):
