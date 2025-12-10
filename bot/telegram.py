@@ -4,7 +4,7 @@ from telegram import Update
 import logging
 
 
-class TelegramBot():
+class TelegramBot:
     def __init__(self, token: str, dbmodule: IDBModule, collector: IStockProvider):
         self.application = Application.builder().token(token).build()
         self.dbmodule = dbmodule
