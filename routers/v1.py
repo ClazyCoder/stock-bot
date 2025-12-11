@@ -1,13 +1,15 @@
 # routers/v1.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from dependencies import get_stock_service, get_user_data_service
 from schemas import StockRequest
+from services.stock_data_service import StockDataService
+from services.user_data_service import UserDataService
 
 router = APIRouter(prefix="/v1", tags=["v1"])
 
 
 @router.post("/collect")
-async def collect_stock_price(request: StockRequest):
+async def collect_stock_price(request: StockRequest, stock_service: StockDataService = Depends(get_stock_service)):
     """
     Collects the latest stock price for the given ticker and saves it to the database.
     Parameters:
@@ -19,7 +21,6 @@ async def collect_stock_price(request: StockRequest):
         - If there is a problem with the external stock data provider, an error may occur.
         - If there is a database error while saving the data, an error may be returned.
     """
-    stock_service = get_stock_service()
     success = await stock_service.collect_and_save(request.ticker, request.period)
     message = (
         "Stock data collected successfully"
@@ -35,8 +36,7 @@ async def collect_stock_price(request: StockRequest):
 
 
 @router.get("/user")
-async def get_user(provider: str, provider_id: str):
-    user_data_service = get_user_data_service()
+async def get_user(provider: str, provider_id: str, user_data_service: UserDataService = Depends(get_user_data_service)):
     user = await user_data_service.get_user(provider, provider_id)
     if user:
         return user
@@ -45,8 +45,7 @@ async def get_user(provider: str, provider_id: str):
 
 
 @router.get("/stock_price")
-async def get_stock_price(ticker: str):
-    stock_service = get_stock_service()
+async def get_stock_price(ticker: str, stock_service: StockDataService = Depends(get_stock_service)):
     stock_price = await stock_service.get_stock_data(ticker)
     if stock_price:
         return {
@@ -54,7 +53,4 @@ async def get_stock_price(ticker: str):
             "data": stock_price,
         }
     else:
-        return {
-            "success": False,
-            "message": "Stock price not found",
-        }
+        raise HTTPException(status_code=404, detail="Stock price not found")

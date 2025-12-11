@@ -6,6 +6,7 @@ from telegram import Update
 import logging
 import os
 import secrets
+import re
 
 
 class TelegramBot:
@@ -27,6 +28,11 @@ class TelegramBot:
             ticker = "".join(context.args) if context.args else None
             if not ticker:
                 await update.message.reply_text("Please provide a ticker")
+                return
+
+            # Validate ticker: only alphanumeric characters and common separators
+            if not re.match(r'^[a-zA-Z0-9._/-]+$', ticker):
+                await update.message.reply_text("Invalid ticker format. Ticker must contain only alphanumeric characters and common separators (., _, -, /)")
                 return
             await update.message.reply_text("Generating report... this may take a while...")
             report = await self.llm_module.generate_report_with_ticker(ticker)

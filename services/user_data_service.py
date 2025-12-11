@@ -13,6 +13,8 @@ class UserDataService:
         if user:
             return user
         else:
+            self.logger.error(
+                f"User not found for provider: {provider} and provider_id: {provider_id}")
             return None
 
     async def register_user(self, provider: str, provider_id: str) -> bool:

@@ -30,11 +30,11 @@ class StockDataService:
         return True
 
     async def get_stock_data(self, ticker: str) -> List[StockPrice] | None:
-        '''
+        """
         Get stock data from the database.
-        Args: 
-            ticker: str - The ticker of the stock to get data for.
+        Args:
+            ticker (str): The ticker of the stock to get data for.
         Returns:
-            List[StockPrice] | None - The stock data for the given ticker.
-        '''
+            List[StockPrice] | None: The stock data for the given ticker.
+        """
         return await self.stock_repository.get_stock_data(ticker)
