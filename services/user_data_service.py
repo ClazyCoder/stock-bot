@@ -13,8 +13,6 @@ class UserDataService:
         if user:
             return user
         else:
-            self.logger.error(
-                f"User not found for provider: {provider} and provider_id: {provider_id}")
             return None
 
     async def register_user(self, provider: str, provider_id: str) -> bool:
@@ -28,11 +26,11 @@ class UserDataService:
                 f"Failed to register user for provider: {provider} and provider_id: {provider_id}")
             return False
 
-    async def get_authrized_user(self, provider: str, provider_id: str) -> UserDTO | None:
-        user = await self.user_repository.get_authrized_user(provider, provider_id)
+    async def get_authorized_user(self, provider: str, provider_id: str) -> UserDTO | None:
+        user = await self.user_repository.get_authorized_user(provider, provider_id)
         if user:
             return user
         else:
             self.logger.error(
-                f"Authrized user not found for provider: {provider} and provider_id: {provider_id}")
+                f"Authorized user not found for provider: {provider} and provider_id: {provider_id}")
             return None

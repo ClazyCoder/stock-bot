@@ -6,10 +6,9 @@ import os
 import dotenv
 import routers.v1 as v1
 from bot.telegram import TelegramBot
-from dependencies import get_user_repository, get_stock_repository, get_collector
+from dependencies import get_user_data_service, get_stock_service
 from db.connection import init_db
-from services.user_data_service import UserDataService
-from services.stock_data_service import StockDataService
+from analysis.llm_module import LLMModule
 
 dotenv.load_dotenv()
 
@@ -21,21 +20,16 @@ async def lifespan(app: FastAPI):
     logger.info("Starting stock-bot")
     logger.info("Starting stock-bot Services...")
 
-    user_repository = get_user_repository()
-    stock_repository = get_stock_repository()
-    collector = get_collector()
-
-    user_service = UserDataService(user_repository=user_repository)
-    stock_service = StockDataService(
-        collector=collector, stock_repository=stock_repository)
-
+    # Use singleton services (Bot and FastAPI share the same instances)
+    user_service = get_user_data_service()
+    stock_service = get_stock_service()
+    llm_module = LLMModule(tool_func_list=[stock_service.get_stock_data])
     bots = [TelegramBot(token=os.getenv('TELEGRAM_BOT_TOKEN'),
-                        user_service=user_service, stock_service=stock_service)]
+                        user_service=user_service, stock_service=stock_service, llm_module=llm_module)]
     for bot in bots:
         await bot.start()
     yield
 
-    # TODO : Stop services
     logger.info("Stopping stock-bot Services...")
     logger.info("Stopping stock-bot")
     for bot in bots:

@@ -13,7 +13,13 @@ class StockRequest(StockSymbol):
     """
     Schema for requests involving a stock ticker symbol, such as fetching price or analysis data.
     """
-    pass
+    period: str = Field(default="1d", description="Period")
+    """
+    Period for the stock price data.
+    Args:
+        period: str - The period of the stock to fetch the price for.
+        Valid periods: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
+    """
 
 
 class StockPrice(StockSymbol):
