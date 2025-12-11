@@ -31,7 +31,7 @@ class StockDataCollector(IStockProvider):
                 continue
         return main_leaders
 
-    async def fetch_stock_price(self, ticker: str) -> StockPrice:
+    async def fetch_stock_price(self, ticker: str, period: str = "1d") -> StockPrice:
         """
         Fetch stock price data asynchronously.
         Runs blocking yf.download() in a thread pool to avoid blocking the event loop.
@@ -41,7 +41,7 @@ class StockDataCollector(IStockProvider):
         data = await loop.run_in_executor(None,
                                           # auto_adjust=False to avoid auto-adjusting the data
                                           lambda: yf.download(
-                                              ticker, period="1d", auto_adjust=False)
+                                              ticker, period=period, auto_adjust=False)
                                           )
 
         # Validate that data is not empty

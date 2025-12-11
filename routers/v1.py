@@ -20,7 +20,7 @@ async def collect_stock_price(request: StockRequest):
         - If there is a database error while saving the data, an error may be returned.
     """
     stock_service = get_stock_service()
-    success = await stock_service.collect_and_save(request.ticker)
+    success = await stock_service.collect_and_save(request.ticker, request.period)
     message = (
         "Stock data collected successfully"
         if success
@@ -30,6 +30,7 @@ async def collect_stock_price(request: StockRequest):
         "success": success,
         "message": message,
         "ticker": request.ticker,
+        "period": request.period,
     }
 
 
@@ -41,3 +42,19 @@ async def get_user(provider: str, provider_id: str):
         return user
     else:
         raise HTTPException(status_code=404, detail="User not found")
+
+
+@router.get("/stock_price")
+async def get_stock_price(ticker: str):
+    stock_service = get_stock_service()
+    stock_price = await stock_service.get_stock_data(ticker)
+    if stock_price:
+        return {
+            "success": True,
+            "data": stock_price,
+        }
+    else:
+        return {
+            "success": False,
+            "message": "Stock price not found",
+        }
