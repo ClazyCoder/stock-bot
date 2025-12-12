@@ -8,6 +8,10 @@ from db.repositories.stock_repository import StockRepository
 from db.connection import AsyncSessionLocal
 from services.user_data_service import UserDataService
 from typing import Generator
+from langchain_mcp_adapters.client import MultiServerMCPClient
+import os
+import dotenv
+dotenv.load_dotenv()
 
 # Singleton instances
 _stock_repository: StockRepository | None = None
@@ -15,6 +19,25 @@ _user_repository: UserRepository | None = None
 _stock_data_collector: IStockProvider | None = None
 _user_service: UserDataService | None = None
 _stock_service: StockDataService | None = None
+_mcp_client: MultiServerMCPClient | None = None
+
+
+async def get_mcp_client() -> MultiServerMCPClient:
+    global _mcp_client
+    if _mcp_client is None:
+        _mcp_client = MultiServerMCPClient(
+            {
+                "edgartools": {
+                    "transport": "stdio",
+                    "command": "python",
+                    "args": ["-m", "edgar.ai"],
+                    "env": {
+                        "EDGAR_IDENTITY": os.getenv("EDGAR_IDENTITY", "Your Name your.email@example.com")
+                    }
+                }
+            }
+        )
+    return _mcp_client
 
 
 async def get_db_session() -> Generator[AsyncSession, None, None]:

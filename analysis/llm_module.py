@@ -1,15 +1,15 @@
+from codecs import getdecoder
 from langchain_ollama import ChatOllama
 import os
 from langchain.agents import create_agent
+from langchain.tools import BaseTool
 from typing import List, Callable
-from langchain.tools import tool
 import logging
 
 
 class LLMModule:
-    def __init__(self, tool_func_list: List[Callable]):
+    def __init__(self, tools: List[BaseTool]):
         self.logger = logging.getLogger(__name__)
-        tools = [tool(func) for func in tool_func_list]
         self.agent = create_agent(
             self._build_model(), tools=tools)
         self.logger.info(f"Agent built successfully")

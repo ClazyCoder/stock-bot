@@ -6,11 +6,23 @@ import os
 import dotenv
 import routers.v1 as v1
 from bot.telegram import TelegramBot
-from dependencies import get_user_data_service, get_stock_service
+from dependencies import get_user_data_service, get_stock_service, get_mcp_client
 from db.connection import init_db
 from analysis.llm_module import LLMModule
-
+from langchain.tools import tool
+from typing import List, Callable
+from langchain.tools import BaseTool
 dotenv.load_dotenv()
+
+
+async def build_tools(tool_func_list: List[Callable]) -> List[BaseTool]:
+    logger = logging.getLogger(__name__)
+    mcp_client = await get_mcp_client()
+    mcp_tools = await mcp_client.get_tools()
+    logger.info(f"Found {len(mcp_tools)} mcp tools")
+    tools = [tool(func) for func in tool_func_list]
+    logger.info(f"Built {len(tools)} local tools")
+    return tools + mcp_tools
 
 
 @asynccontextmanager
@@ -19,12 +31,11 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Starting stock-bot")
     logger.info("Starting stock-bot Services...")
-
     # Use singleton services (Bot and FastAPI share the same instances)
     user_service = get_user_data_service()
     stock_service = get_stock_service()
     llm_module = LLMModule(
-        tool_func_list=[stock_service.get_stock_data_llm_context])
+        tools=await build_tools([stock_service.get_stock_data_llm_context]))
     bots = [TelegramBot(token=os.getenv('TELEGRAM_BOT_TOKEN'),
                         user_service=user_service, stock_service=stock_service, llm_module=llm_module)]
     for bot in bots:
