@@ -4,7 +4,9 @@ from db.repositories.stock_repository import StockRepository
 import logging
 from typing import List
 from schemas.stock import StockPriceResponse
+from schemas.llm import StockPriceLLMContext
 from typing import Union
+from utils.formatter import to_csv_string
 
 
 class StockDataService:
@@ -39,3 +41,18 @@ class StockDataService:
             List[StockPriceResponse] | None: The stock data for the given ticker.
         """
         return await self.stock_repository.get_stock_data(ticker)
+
+    async def get_stock_data_llm_context(self, ticker: str) -> str | None:
+        """
+        Get stock data from the database and convert it to LLM context.
+        Args:
+            ticker (str): The ticker of the stock to get data for.
+        Returns:
+            str | None: The stock data for the given ticker in CSV string format. if no data is found, return None.
+        """
+        stock_data = await self.stock_repository.get_stock_data(ticker)
+        if not stock_data:
+            return None
+        stock_data_llm_context = [
+            StockPriceLLMContext.model_validate(data) for data in stock_data]
+        return to_csv_string(stock_data_llm_context)
