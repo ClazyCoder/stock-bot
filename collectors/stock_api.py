@@ -2,7 +2,7 @@ import yfinance as yf
 import asyncio
 import pandas as pd
 from interfaces import IStockProvider
-from schemas import StockPrice
+from schemas.stock import StockPriceCreate, StockPriceResponse
 from typing import List
 
 main_sectors = {
@@ -33,7 +33,7 @@ class StockDataCollector(IStockProvider):
                 continue
         return main_leaders
 
-    async def fetch_stock_price(self, tickers, period: str = "1d") -> List[StockPrice]:
+    async def fetch_stock_price(self, tickers, period: str = "1d") -> List[StockPriceCreate]:
         """
         Fetch stock price data for one or multiple tickers asynchronously.
         Runs blocking yf.download() in a thread pool to avoid blocking the event loop.
@@ -42,7 +42,7 @@ class StockDataCollector(IStockProvider):
             tickers (Union[str, List[str]]): Single ticker or list of ticker symbols.
             period (str): Period string for yfinance. Default: "1d".
         Returns:
-            List[StockPrice]
+            List[StockPriceCreate]
         """
         if isinstance(tickers, str):
             tickers_list = [tickers]
@@ -60,7 +60,7 @@ class StockDataCollector(IStockProvider):
             )
         )
 
-        results: List[StockPrice] = []
+        results: List[StockPriceCreate] = []
 
         # yfinance returns a multi-index dataframe with columns (ticker, field) if multiple tickers
         for ticker in tickers_list:
@@ -106,7 +106,7 @@ class StockDataCollector(IStockProvider):
                 )
 
             for idx in range(len(stock_df)):
-                results.append(StockPrice(
+                results.append(StockPriceCreate(
                     ticker=ticker,
                     trade_date=stock_df.index[idx],
                     close_price=float(stock_df['Close'].iloc[idx].item()),

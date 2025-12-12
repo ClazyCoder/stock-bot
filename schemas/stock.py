@@ -20,7 +20,7 @@ class StockRequest(StockSymbol):
     )
 
 
-class StockPrice(StockSymbol):
+class StockPriceCreate(StockSymbol):
     """
     Stock Chart Data (OHLCV)
     """
@@ -31,10 +31,16 @@ class StockPrice(StockSymbol):
     high_price: float = Field(..., description="High Price")
     low_price: float = Field(..., description="Low Price")
     volume: int = Field(0, description="Volume")
-    created_at: datetime = Field(
-        default_factory=datetime.now, description="Created At")
-    updated_at: datetime = Field(
-        default_factory=datetime.now, description="Updated At")
+
+
+class StockPriceResponse(StockPriceCreate):
+    """
+    Stock Chart Data (OHLCV) Response
+    """
+    id: int = Field(..., description="ID")
+
+    class Config:
+        from_attributes = True
 
 
 class AnalysisReport(BaseModel):
