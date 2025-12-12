@@ -64,3 +64,18 @@ class UserRepository(BaseRepository):
                 self.logger.error(
                     f"Authorized user not found for provider: {provider} and provider_id: {provider_id}")
                 return None
+
+    async def remove_user(self, provider: str, provider_id: str) -> bool:
+        async with self._get_session() as session:
+            stmt = select(User).where(User.provider == provider,
+                                      User.provider_id == provider_id)
+            result = await session.execute(stmt)
+            orm_result = result.scalar_one_or_none()
+            if orm_result:
+                await session.delete(orm_result)
+                await session.commit()
+                return True
+            else:
+                self.logger.error(
+                    f"User not found for provider: {provider} and provider_id: {provider_id}")
+                return False

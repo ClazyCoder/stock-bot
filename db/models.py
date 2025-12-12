@@ -11,8 +11,9 @@ class Base(DeclarativeBase):
 
 class Stock(Base):
     __tablename__ = 'stock_data'
-    ticker = Column(String, primary_key=True)
-    trade_date = Column(DateTime, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ticker = Column(String, index=True)
+    trade_date = Column(DateTime)
     open = Column(Float)
     high = Column(Float)
     low = Column(Float)
@@ -20,6 +21,10 @@ class Stock(Base):
     volume = Column(Integer)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now)
+
+    __table_args__ = (
+        UniqueConstraint('ticker', 'trade_date', name='uq_ticker_trade_date'),
+    )
 
 
 class User(Base):

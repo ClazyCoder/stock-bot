@@ -7,6 +7,20 @@ import logging
 import os
 import secrets
 import re
+from typing import Callable
+from functools import wraps
+
+
+def auth_required(func: Callable):
+    @wraps(func)
+    async def wrapper(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user_id = str(update.effective_user.id)
+        user = await self.user_service.get_authorized_user("telegram", user_id)
+        if not user:
+            await update.message.reply_text("You are not authorized to use this bot")
+            return
+        return await func(self, update, context)
+    return wrapper
 
 
 class TelegramBot:
@@ -19,10 +33,10 @@ class TelegramBot:
         self.logger = logging.getLogger(__name__)
 
     def _register_handlers(self):
-        # TODO : Register handlers
         self.application.add_handler(CommandHandler("auth", self.auth))
         self.application.add_handler(CommandHandler("report", self.report))
 
+    @auth_required
     async def report(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             ticker = "".join(context.args) if context.args else None
@@ -30,7 +44,6 @@ class TelegramBot:
                 await update.message.reply_text("Please provide a ticker")
                 return
 
-            # Validate ticker: only alphanumeric characters and common separators
             if not re.match(r'^[a-zA-Z0-9._/-]+$', ticker):
                 await update.message.reply_text("Invalid ticker format. Ticker must contain only alphanumeric characters and common separators (., _, -, /)")
                 return

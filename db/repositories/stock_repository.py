@@ -8,31 +8,42 @@ from sqlalchemy import select
 
 class StockRepository(BaseRepository):
 
-    async def insert_stock_data(self, stock_data: StockPrice):
+    async def insert_stock_data(self, stock_data: List[StockPrice] | StockPrice):
         """
-        Insert stock data into the database.
+        Insert one or multiple stock data entries into the database.
+        Accepts a single StockPrice or a list of StockPrice (Pydantic) models.
         Converts StockPrice (Pydantic) to Stock (SQLAlchemy ORM).
+        Args:
+            stock_data (List[StockPrice] | StockPrice): The stock data to insert.
+        Returns:
+            bool: True if the stock data was inserted successfully, False otherwise.
         """
-        async with self._get_session() as session:
-            # Convert StockPrice (Pydantic) to Stock (SQLAlchemy)
-            stock_model = Stock(
-                ticker=stock_data.ticker,
-                trade_date=stock_data.trade_date,  # trade_date -> trade_date
-                open=stock_data.open_price,  # open_price -> open
-                high=stock_data.high_price,  # high_price -> high
-                low=stock_data.low_price,    # low_price -> low
-                close=stock_data.close_price,  # close_price -> close
-                volume=stock_data.volume,  # volume -> volume
-                created_at=stock_data.created_at,  # created_at -> created_at
-                updated_at=stock_data.updated_at  # updated_at -> updated_at
+        # Normalize input type to list
+        if not isinstance(stock_data, list):
+            stock_data = [stock_data]
+
+        stock_models = [
+            Stock(
+                ticker=sd.ticker,
+                trade_date=sd.trade_date,
+                open=sd.open_price,
+                high=sd.high_price,
+                low=sd.low_price,
+                close=sd.close_price,
+                volume=sd.volume,
+                created_at=sd.created_at,
+                updated_at=sd.updated_at
             )
+            for sd in stock_data
+        ]
+        async with self._get_session() as session:
             try:
-                session.add(stock_model)
+                session.add_all(stock_models)
                 await session.commit()
                 return True
             except IntegrityError as e:
                 await session.rollback()
-                self.logger.warning(f"Stock data already exists: {e}")
+                self.logger.warning(f"Some stock data already exists: {e}")
                 return False
             except Exception as e:
                 self.logger.error(f"Error inserting stock data: {e}")
@@ -42,6 +53,10 @@ class StockRepository(BaseRepository):
     async def get_stock_data(self, ticker: str) -> List[StockPrice] | None:
         """
         Get stock data from the database.
+        Args:
+            ticker (str): The ticker of the stock to get data for.
+        Returns:
+            List[StockPrice] | None: The stock data for the given ticker.
         """
         async with self._get_session() as session:
             try:
@@ -66,3 +81,23 @@ class StockRepository(BaseRepository):
             except Exception as e:
                 self.logger.error(f"Error fetching stock data: {e}")
                 return []
+
+    async def remove_stock_data(self, id: int) -> bool:
+        """
+        Remove stock data from the database.
+        Args:
+            id (int): The id of the stock data to remove.
+        Returns:
+            bool: True if the stock data was removed successfully, False otherwise.
+        """
+        async with self._get_session() as session:
+            stmt = select(Stock).where(Stock.id == id)
+            result = await session.execute(stmt)
+            orm_result = result.scalar_one_or_none()
+            if orm_result:
+                await session.delete(orm_result)
+                await session.commit()
+                return True
+            else:
+                self.logger.error(f"Stock data not found for id: {id}")
+                return False
