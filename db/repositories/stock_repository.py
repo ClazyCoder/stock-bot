@@ -64,6 +64,7 @@ class StockRepository(BaseRepository):
 
                 pydantic_results = [
                     StockPriceResponse(
+                        id=stock.id,
                         ticker=stock.ticker,
                         trade_date=stock.trade_date,
                         open_price=stock.open,
