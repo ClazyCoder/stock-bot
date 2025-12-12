@@ -1,4 +1,4 @@
 # schemas/__init__.py
-from .stock import StockPrice, StockRequest
+from .stock import StockPriceCreate, StockPriceResponse, StockRequest
 
-__all__ = ['StockPrice', 'StockRequest']
+__all__ = ['StockPriceCreate', 'StockPriceResponse', 'StockRequest']
