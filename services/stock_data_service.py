@@ -3,7 +3,8 @@ from interfaces import IStockProvider
 from db.repositories.stock_repository import StockRepository
 import logging
 from typing import List
-from schemas.stock import StockPrice
+from schemas.stock import StockPriceResponse
+from typing import Union
 
 
 class StockDataService:
@@ -12,7 +13,7 @@ class StockDataService:
         self.collector = collector
         self.stock_repository = stock_repository
 
-    async def collect_and_save(self, ticker: str, period: str = "1d"):
+    async def collect_and_save(self, ticker: Union[str, List[str]], period: str = "1d"):
         # Collect data from API
         stock_data = await self.collector.fetch_stock_price(ticker, period)
         if stock_data:
@@ -29,12 +30,12 @@ class StockDataService:
             return False
         return True
 
-    async def get_stock_data(self, ticker: str) -> List[StockPrice] | None:
+    async def get_stock_data(self, ticker: str) -> List[StockPriceResponse] | None:
         """
         Get stock data from the database.
         Args:
             ticker (str): The ticker of the stock to get data for.
         Returns:
-            List[StockPrice] | None: The stock data for the given ticker.
+            List[StockPriceResponse] | None: The stock data for the given ticker.
         """
         return await self.stock_repository.get_stock_data(ticker)
