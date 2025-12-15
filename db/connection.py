@@ -2,6 +2,8 @@
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from db.models import Base
+import dotenv
+dotenv.load_dotenv()
 
 
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///stock.db')
