@@ -2,13 +2,13 @@ from db.repositories.base import BaseRepository
 from schemas.stock import StockPriceCreate, StockPriceResponse
 from db.models import Stock
 from typing import List
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import select
 
 
 class StockRepository(BaseRepository):
 
-    async def insert_stock_data(self, stock_data: List[StockPriceCreate] | StockPriceCreate):
+    async def insert_stock_data(self, stock_data: List[StockPriceCreate] | StockPriceCreate) -> bool | None:
         """
         Insert one or multiple stock data entries into the database.
         Accepts a single StockPrice or a list of StockPrice (Pydantic) models.
@@ -16,37 +16,35 @@ class StockRepository(BaseRepository):
         Args:
             stock_data (List[StockPrice] | StockPrice): The stock data to insert.
         Returns:
-            bool: True if the stock data was inserted successfully, False otherwise.
+            bool | None: True if the stock data was inserted successfully, None if an error occurred.
         """
         # Normalize input type to list
         if not isinstance(stock_data, list):
             stock_data = [stock_data]
 
         stock_models = [
-            Stock(
-                ticker=sd.ticker,
-                trade_date=sd.trade_date,
-                open=sd.open_price,
-                high=sd.high_price,
-                low=sd.low_price,
-                close=sd.close_price,
-                volume=sd.volume,
-            )
+            {
+                "ticker": sd.ticker,
+                "trade_date": sd.trade_date,
+                "open": sd.open_price,
+                "high": sd.high_price,
+                "low": sd.low_price,
+                "close": sd.close_price,
+                "volume": sd.volume,
+            }
             for sd in stock_data
         ]
         async with self._get_session() as session:
             try:
-                session.add_all(stock_models)
+                stmt = insert(Stock).values(stock_models).on_conflict_do_nothing(
+                    index_elements=['ticker', 'trade_date'])
+                result = await session.execute(stmt)
                 await session.commit()
-                return True
-            except IntegrityError as e:
-                await session.rollback()
-                self.logger.warning(f"Some stock data already exists: {e}")
-                return False
+                return result.rowcount > 0
             except Exception as e:
                 self.logger.error(f"Error inserting stock data: {e}")
                 await session.rollback()
-                return False
+                return None
 
     async def get_stock_data(self, ticker: str) -> List[StockPriceResponse] | None:
         """

@@ -13,6 +13,7 @@ dependencies = [
     "langchain>=1.1.2",
     "langchain-mcp-adapters>=0.2.1",
     "langchain-ollama>=1.0.0",
+    "pgvector>=0.4.2",
     "pydantic>=2.12.5",
     "pytest>=9.0.2",
     "python-dotenv>=1.2.1",

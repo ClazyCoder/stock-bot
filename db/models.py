@@ -2,7 +2,8 @@
 from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Boolean
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.schema import UniqueConstraint, Index
-from datetime import datetime
+from sqlalchemy.sql import func
+from pgvector.sqlalchemy import Vector
 
 
 class Base(DeclarativeBase):
@@ -19,8 +20,9 @@ class Stock(Base):
     low = Column(Float)
     close = Column(Float)
     volume = Column(Integer)
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(),
+                        onupdate=func.now())
 
     __table_args__ = (
         UniqueConstraint('ticker', 'trade_date', name='uq_ticker_trade_date'),
@@ -34,7 +36,7 @@ class User(Base):
     provider_id = Column(String, nullable=False)
 
     is_authorized = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, server_default=func.now())
 
     subscriptions = relationship(
         'Subscription', back_populates='user', cascade="all, delete-orphan")
@@ -55,3 +57,18 @@ class Subscription(Base):
     ticker = Column(String, nullable=False)
 
     user = relationship('User', back_populates='subscriptions')
+
+
+class StockNews(Base):
+    __tablename__ = 'stock_news'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ticker = Column(String, index=True, nullable=False)
+
+    title = Column(String, nullable=False)
+    content = Column(String, nullable=True)
+    published_at = Column(DateTime, index=True)
+
+    embedding = Column(Vector(768))
+
+    created_at = Column(DateTime, server_default=func.now())

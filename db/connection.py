@@ -6,10 +6,10 @@ import dotenv
 dotenv.load_dotenv()
 
 
-DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///stock.db')
-
-engine = create_async_engine(DATABASE_URL, echo=True, connect_args={
-    "check_same_thread": False} if "sqlite" in DATABASE_URL else {})
+DATABASE_URL = os.getenv('DATABASE_URL')
+if DATABASE_URL is None:
+    raise ValueError("DATABASE_URL is not set")
+engine = create_async_engine(DATABASE_URL, echo=True, connect_args={})
 
 
 async def init_db():
