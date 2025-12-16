@@ -65,14 +65,11 @@ class StockNews(Base):
     ticker = Column(String, index=True, nullable=False)
     title = Column(String, nullable=False)
     full_content = Column(String, nullable=True)
-    published_at = Column(DateTime, index=True)
-    url = Column(String, nullable=False)
+    published_at = Column(DateTime)
+    url = Column(String, nullable=False, unique=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(),
                         onupdate=func.now())
-    __table_args__ = (
-        UniqueConstraint('ticker', 'url', name='uq_ticker_url'),
-    )
 
 
 class StockNewsChunk(Base):
