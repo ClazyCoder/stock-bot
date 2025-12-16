@@ -3,7 +3,7 @@ from interfaces import IStockProvider, INewsProvider
 from db.repositories.stock_repository import StockRepository
 import logging
 from typing import List
-from schemas.stock import StockPriceResponse
+from schemas.stock import StockPriceResponse, StockNewsResponse
 from schemas.llm import StockPriceLLMContext
 from typing import Union
 from utils.formatter import to_csv_string
