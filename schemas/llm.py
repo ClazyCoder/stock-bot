@@ -34,3 +34,12 @@ class StockPriceLLMContext(BaseModel):
     class Config:
         from_attributes = True
         populate_by_name = True
+
+
+class StockNewsLLMContext(BaseModel):
+    """
+    LLM Context for news data. Used for optimizing the LLM context.
+    """
+    title: str = Field(..., description="Title of the news")
+    content: str = Field(..., description="Content of the news")
+    published_at: datetime = Field(..., description="Published at")

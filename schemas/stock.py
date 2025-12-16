@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Literal
+from typing import Literal, List
 
 
 class StockSymbol(BaseModel):
@@ -56,3 +56,23 @@ class AnalysisReport(BaseModel):
     summary: str
     sentiment_score: float  # 0.8 (Positive / Neutral / Negative)
     recommendation: str  # "BUY" / "HOLD" / "SELL"
+
+
+class StockNewsCreate(StockSymbol):
+    """
+    Stock News Data
+    """
+    title: str = Field(..., description="Title")
+    content: str = Field(..., description="Content")
+    published_at: datetime = Field(..., description="Published at")
+    embedding: List[float] = Field(..., description="Embedding", dim=768)
+
+
+class StockNewsResponse(StockNewsCreate):
+    """
+    Stock News Data Response
+    """
+    id: int = Field(..., description="ID")
+
+    class Config:
+        from_attributes = True
