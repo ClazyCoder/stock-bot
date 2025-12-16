@@ -61,14 +61,28 @@ class Subscription(Base):
 
 class StockNews(Base):
     __tablename__ = 'stock_news'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ticker = Column(String, index=True, nullable=False)
+    title = Column(String, nullable=False)
+    full_content = Column(String, nullable=True)
+    published_at = Column(DateTime, index=True)
+    url = Column(String, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(),
+                        onupdate=func.now())
+    __table_args__ = (
+        UniqueConstraint('ticker', 'url', name='uq_ticker_url'),
+    )
+
+
+class StockNewsChunk(Base):
+    __tablename__ = 'stock_news_chunks'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     ticker = Column(String, index=True, nullable=False)
-
-    title = Column(String, nullable=False)
-    content = Column(String, nullable=True)
-    published_at = Column(DateTime, index=True)
-
+    parent_id = Column(Integer, ForeignKey(
+        'stock_news.id'), nullable=False)
     embedding = Column(Vector(768))
+    content = Column(String, nullable=True)
 
     created_at = Column(DateTime, server_default=func.now())

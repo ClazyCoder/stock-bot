@@ -1,5 +1,5 @@
 # services/stock_data_service.py
-from interfaces import IStockProvider
+from interfaces import IStockProvider, INewsProvider
 from db.repositories.stock_repository import StockRepository
 import logging
 from typing import List
@@ -10,10 +10,11 @@ from utils.formatter import to_csv_string
 
 
 class StockDataService:
-    def __init__(self, collector: IStockProvider, stock_repository: StockRepository):
+    def __init__(self, collector: IStockProvider, stock_repository: StockRepository, news_collector: INewsProvider):
         self.logger = logging.getLogger(__name__)
         self.collector = collector
         self.stock_repository = stock_repository
+        self.news_collector = news_collector
 
     async def collect_and_save(self, ticker: Union[str, List[str]], period: str = "1d"):
         # Collect data from API
@@ -58,3 +59,28 @@ class StockDataService:
         stock_data_llm_context = [
             StockPriceLLMContext.model_validate(data) for data in stock_data[-count:]]
         return to_csv_string(stock_data_llm_context)
+
+    async def collect_and_save_stock_news(self, ticker: str):
+        """
+        Collect and save stock news for the given ticker.
+        Args:
+            ticker (str): The ticker of the stock to collect news for.
+        """
+        stock_news, chunks = await self.news_collector.fetch_news(ticker)
+        if stock_news and chunks:
+            result = await self.stock_repository.insert_stock_news(stock_news, chunks)
+            if result:
+                self.logger.info(f"Saved stock news for {ticker}")
+
+    async def get_stock_news(self, ticker: str, query_embedding: List[float], top_k: int = 5, candidate_pool: int = 20) -> StockNewsResponse | None:
+        """
+        Get stock news from the database.
+        Args:
+            ticker (str): The ticker of the stock to get news for.
+            query_embedding (List[float]): The query embedding to get news for.
+            top_k (int): The number of news to get.
+            candidate_pool (int): The number of chunks to get.
+        Returns:
+            List[StockNewsResponse] | None: The stock news for the given ticker and query embedding.
+        """
+        return await self.stock_repository.get_stock_news(ticker, query_embedding, top_k, candidate_pool)

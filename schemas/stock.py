@@ -58,14 +58,33 @@ class AnalysisReport(BaseModel):
     recommendation: str  # "BUY" / "HOLD" / "SELL"
 
 
+class StockNewsChunkCreate(StockSymbol):
+    """
+    Stock News Chunk Data
+    """
+    title: str = Field(..., description="Title")
+    content: str = Field(..., description="Content")
+    embedding: List[float] = Field(..., description="Embedding", dim=768)
+
+
+class StockNewsChunkResponse(StockNewsChunkCreate):
+    """
+    Stock News Chunk Data Response
+    """
+    id: int = Field(..., description="ID")
+
+    class Config:
+        from_attributes = True
+
+
 class StockNewsCreate(StockSymbol):
     """
     Stock News Data
     """
     title: str = Field(..., description="Title")
-    content: str = Field(..., description="Content")
+    full_content: str = Field(..., description="Full Content")
     published_at: datetime = Field(..., description="Published at")
-    embedding: List[float] = Field(..., description="Embedding", dim=768)
+    url: str = Field(..., description="URL")
 
 
 class StockNewsResponse(StockNewsCreate):

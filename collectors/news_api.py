@@ -1,18 +1,22 @@
 from interfaces import INewsProvider
-from schemas.stock import StockNewsCreate
+from schemas.stock import StockNewsCreate, StockNewsChunkCreate
 from typing import List, Union
-from langchain_community.utilities import SearxSearchWrapper
 import logging
 import os
 from langchain_ollama import OllamaEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+import yfinance as yf
+import trafilatura
+import json
+from typing import Tuple
 
 
 class NewsDataCollector(INewsProvider):
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.news_api = SearxSearchWrapper(
-            searx_host=os.getenv("SEARX_BASE_URL", "http:127.0.0.1:8888"))
         self.embedding_model = self._build_embedding_model()
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000, chunk_overlap=200, separators=["\n\n", "\n", ".", " ", ""])
         self.logger.info(f"News data collector built successfully")
 
     def _build_embedding_model(self):
@@ -27,22 +31,26 @@ class NewsDataCollector(INewsProvider):
         else:
             raise ValueError(f"Unsupported embedding provider: {provider}")
 
-    async def fetch_news(self, ticker: Union[str, List[str]]) -> List[StockNewsCreate]:
+    async def fetch_news(self, ticker: str) -> Tuple[StockNewsCreate, List[StockNewsChunkCreate]]:
         """
         Get the news for one or multiple tickers.
         Args:
-            ticker: Union[str, List[str]] - The ticker or tickers of the news to fetch.
+            ticker: str - The ticker of the news to fetch.
         Returns:
-            List[StockNewsCreate] - The news for the given tickers.
+            Tuple[StockNewsCreate, List[StockNewsChunkCreate]] - The news for the given tickers.
         """
-        if isinstance(ticker, str):
-            ticker = [ticker]
-        news = []
-        for t in ticker:
-            results = await self.news_api.aresults(
-                f"stock news for {t}", k=3, engines=["google_news"])
-            breakpoint()
-            for result in results:
-                news.append(StockNewsCreate(
-                    ticker=t, title=result.title, content=result.content, published_at=result.published_at))
-        return news
+        chunks = []
+        search_results = yf.Search(ticker).search()
+        for news in search_results.news:
+            downloaded_page = trafilatura.fetch_url(news['link'])
+            extracted_content = trafilatura.extract(
+                downloaded_page, output_format='json', include_comments=False, with_metadata=True)
+            results = json.loads(extracted_content)
+            chunks = self.text_splitter.split_text(results['text'])
+            for chunk in chunks:
+                embedding = self.embedding_model.embed_query(chunk)
+                chunks.append(StockNewsChunkCreate(
+                    ticker=ticker, title=results['title'], content=chunk, embedding=embedding))
+        full_news = StockNewsCreate(
+            ticker=ticker, title=results['title'], full_content=results['text'], published_at=results['date'], url=news['link'])
+        return full_news, chunks

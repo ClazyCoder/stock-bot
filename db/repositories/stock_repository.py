@@ -1,9 +1,9 @@
 from db.repositories.base import BaseRepository
-from schemas.stock import StockPriceCreate, StockPriceResponse
-from db.models import Stock
+from schemas.stock import StockPriceCreate, StockPriceResponse, StockNewsCreate, StockNewsChunkCreate, StockNewsResponse
+from db.models import Stock, StockNews, StockNewsChunk
 from typing import List
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 
 class StockRepository(BaseRepository):
@@ -96,3 +96,71 @@ class StockRepository(BaseRepository):
             else:
                 self.logger.error(f"Stock data not found for id: {id}")
                 return False
+
+    async def insert_stock_news(self, stock_news: StockNewsCreate, chunks: List[StockNewsChunkCreate]) -> bool:
+        """
+        Insert stock news and chunks into the database.
+        Args:
+            stock_news: StockNewsCreate - The stock news to insert.
+            chunks: List[StockNewsChunkCreate] - The chunks of the stock news to insert.
+        Returns:
+            bool: True if the stock news and chunks were inserted successfully, False otherwise.
+        """
+        async with self._get_session() as session:
+            try:
+                stmt = insert(StockNews).values(stock_news.model_dump())
+                result = await session.execute(stmt)
+                await session.commit()
+                stock_news_id = result.scalar_one().id
+                for chunk in chunks:
+                    chunk.parent_id = stock_news_id
+                    stmt = insert(StockNewsChunk).values(chunk.model_dump())
+                    result = await session.execute(stmt)
+                    await session.commit()
+                return result.rowcount > 0
+            except Exception as e:
+                self.logger.error(f"Error inserting stock news: {e}")
+                await session.rollback()
+                return False
+
+    async def get_stock_news(self, ticker: str, query_embedding: List[float], top_k: int = 5, candidate_pool: int = 20) -> List[StockNewsResponse] | None:
+        """
+        Get stock news from the database.
+        Args:
+            ticker: str - The ticker of the stock news to get.
+            query_embedding: List[float] - The embedding of the query to get the stock news for.
+        Returns:
+            List[StockNewsResponse] | None: The stock news for the given ticker and query embedding.
+        """
+        async with self._get_session() as session:
+            try:
+                distance_col = StockNewsChunk.embedding.cosine_similarity(
+                    query_embedding)
+                subquery = (
+                    select(
+                        StockNewsChunk.parent_id,
+                        distance_col
+                    )
+                    .order_by(distance_col.asc())
+                    .limit(candidate_pool)
+                    .subquery()
+                )
+                score_col = func.sum(
+                    1 - subquery.c.distance)
+                stmt = (
+                    select(StockNews, score_col, func.count(
+                        subquery.c.parent_id).label("chunk_count")).join(subquery, StockNews.id == subquery.c.parent_id).group_by(StockNews.id).order_by(score_col.desc()).limit(top_k)
+                )
+                result = await session.execute(stmt)
+                orm_results = result.all()
+                return [StockNewsResponse(
+                    id=news.id,
+                    ticker=news.ticker,
+                    title=news.title,
+                    full_content=news.full_content,
+                    published_at=news.published_at,
+                    url=news.url,
+                ) for news in orm_results]
+            except Exception as e:
+                self.logger.error(f"Error getting stock news: {e}")
+                raise e
