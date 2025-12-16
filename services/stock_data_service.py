@@ -84,3 +84,13 @@ class StockDataService:
             List[StockNewsResponse] | None: The stock news for the given ticker and query embedding.
         """
         return await self.stock_repository.get_stock_news(ticker, query_embedding, top_k, candidate_pool)
+
+    async def get_embedding(self, text: str) -> List[float]:
+        """
+        Get the embedding for the given text.
+        Args:
+            text (str): The text to get the embedding for.
+        Returns:
+            List[float]: The embedding for the given text.
+        """
+        return await self.news_collector.get_embedding(text)

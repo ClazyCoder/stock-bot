@@ -54,3 +54,13 @@ class NewsDataCollector(INewsProvider):
         full_news = StockNewsCreate(
             ticker=ticker, title=results['title'], full_content=results['text'], published_at=results['date'], url=news['link'])
         return full_news, chunks
+
+    async def get_embedding(self, text: str) -> List[float]:
+        """
+        Get the embedding for the given text.
+        Args:
+            text (str): The text to get the embedding for.
+        Returns:
+            List[float]: The embedding for the given text.
+        """
+        return self.embedding_model.embed_query(text)

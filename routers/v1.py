@@ -54,3 +54,29 @@ async def get_stock_price(ticker: str, stock_service: StockDataService = Depends
         }
     else:
         raise HTTPException(status_code=404, detail="Stock price not found")
+
+
+@router.post("/collect_stock_news")
+async def collect_stock_news(ticker: str, stock_service: StockDataService = Depends(get_stock_service)):
+    success = await stock_service.collect_and_save_stock_news(ticker)
+    if success:
+        return {
+            "success": True,
+            "message": "Stock news collected successfully",
+        }
+    else:
+        raise HTTPException(
+            status_code=404, detail="Failed to collect stock news")
+
+
+@router.get("/stock_news")
+async def get_stock_news(ticker: str, query: str, stock_service: StockDataService = Depends(get_stock_service)):
+    query_embedding = await stock_service.get_embedding(query)
+    stock_news = await stock_service.get_stock_news(ticker, query_embedding, top_k=5, candidate_pool=20)
+    if stock_news:
+        return {
+            "success": True,
+            "data": stock_news,
+        }
+    else:
+        raise HTTPException(status_code=404, detail="Stock news not found")
