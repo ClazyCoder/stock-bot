@@ -1,8 +1,9 @@
 # dependencies.py
 from collectors.stock_api import StockDataCollector
+from collectors.news_api import NewsDataCollector
 from services.stock_data_service import StockDataService
 from sqlalchemy.ext.asyncio import AsyncSession
-from interfaces import IStockProvider
+from interfaces import IStockProvider, INewsProvider
 from db.repositories.user_repository import UserRepository
 from db.repositories.stock_repository import StockRepository
 from db.connection import AsyncSessionLocal
@@ -20,6 +21,7 @@ _stock_data_collector: IStockProvider | None = None
 _user_service: UserDataService | None = None
 _stock_service: StockDataService | None = None
 _mcp_client: MultiServerMCPClient | None = None
+_news_collector: INewsProvider | None = None
 
 
 async def get_mcp_client() -> MultiServerMCPClient:
@@ -73,13 +75,22 @@ def get_collector() -> IStockProvider:
     return _stock_data_collector
 
 
+def get_news_collector() -> INewsProvider:
+    """Return singleton NewsDataCollector."""
+    global _news_collector
+    if _news_collector is None:
+        _news_collector = NewsDataCollector()
+    return _news_collector
+
+
 def get_stock_service() -> StockDataService:
     """Return singleton StockDataService."""
     global _stock_service
     if _stock_service is None:
         _stock_service = StockDataService(
             collector=get_collector(),
-            stock_repository=get_stock_repository()
+            stock_repository=get_stock_repository(),
+            news_collector=get_news_collector()
         )
     return _stock_service
 
