@@ -64,7 +64,7 @@ class StockNewsChunkCreate(StockSymbol):
     """
     title: str = Field(..., description="Title")
     content: str = Field(..., description="Content")
-    embedding: List[float] = Field(..., description="Embedding", dim=768)
+    embedding: List[float] = Field(..., description="Embedding")
 
 
 class StockNewsChunkResponse(StockNewsChunkCreate):

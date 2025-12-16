@@ -60,17 +60,21 @@ class StockDataService:
             StockPriceLLMContext.model_validate(data) for data in stock_data[-count:]]
         return to_csv_string(stock_data_llm_context)
 
-    async def collect_and_save_stock_news(self, ticker: str):
+    async def collect_and_save_stock_news(self, ticker: str) -> bool:
         """
         Collect and save stock news for the given ticker.
         Args:
             ticker (str): The ticker of the stock to collect news for.
+        Returns:
+            bool: True if the stock news was collected and saved successfully, False otherwise.
         """
         stock_news, chunks = await self.news_collector.fetch_news(ticker)
         if stock_news and chunks:
             result = await self.stock_repository.insert_stock_news(stock_news, chunks)
             if result:
                 self.logger.info(f"Saved stock news for {ticker}")
+                return True
+        return False
 
     async def get_stock_news(self, ticker: str, query_embedding: List[float], top_k: int = 5, candidate_pool: int = 20) -> StockNewsResponse | None:
         """

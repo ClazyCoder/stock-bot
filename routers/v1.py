@@ -2,6 +2,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from dependencies import get_stock_service, get_user_data_service
 from schemas import StockRequest
+from schemas.stock import StockSymbol
 from services.stock_data_service import StockDataService
 from services.user_data_service import UserDataService
 
@@ -57,8 +58,8 @@ async def get_stock_price(ticker: str, stock_service: StockDataService = Depends
 
 
 @router.post("/collect_stock_news")
-async def collect_stock_news(ticker: str, stock_service: StockDataService = Depends(get_stock_service)):
-    success = await stock_service.collect_and_save_stock_news(ticker)
+async def collect_stock_news(stock_req: StockSymbol, stock_service: StockDataService = Depends(get_stock_service)):
+    success = await stock_service.collect_and_save_stock_news(stock_req.ticker)
     if success:
         return {
             "success": True,

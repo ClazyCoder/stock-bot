@@ -8,6 +8,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 import yfinance as yf
 import trafilatura
 import json
+import asyncio
 from typing import Tuple
 
 
@@ -41,16 +42,19 @@ class NewsDataCollector(INewsProvider):
         """
         chunks = []
         search_results = yf.Search(ticker).search()
+        loop = asyncio.get_running_loop()
         for news in search_results.news:
-            downloaded_page = trafilatura.fetch_url(news['link'])
-            extracted_content = trafilatura.extract(
-                downloaded_page, output_format='json', include_comments=False, with_metadata=True)
+            downloaded_page = await loop.run_in_executor(
+                None, lambda: trafilatura.fetch_url(news['link']))
+            extracted_content = await loop.run_in_executor(
+                None, lambda: trafilatura.extract(downloaded_page, output_format='json', include_comments=False, with_metadata=True))
             results = json.loads(extracted_content)
-            chunks = self.text_splitter.split_text(results['text'])
-            for chunk in chunks:
-                embedding = self.embedding_model.embed_query(chunk)
+            chunked_contents = await loop.run_in_executor(
+                None, lambda: self.text_splitter.split_text(results['text']))
+            for content in chunked_contents:
+                embedding = await self.embedding_model.aembed_query(content)
                 chunks.append(StockNewsChunkCreate(
-                    ticker=ticker, title=results['title'], content=chunk, embedding=embedding))
+                    ticker=ticker, title=results['title'], content=content, embedding=embedding))
         full_news = StockNewsCreate(
             ticker=ticker, title=results['title'], full_content=results['text'], published_at=results['date'], url=news['link'])
         return full_news, chunks
@@ -63,4 +67,4 @@ class NewsDataCollector(INewsProvider):
         Returns:
             List[float]: The embedding for the given text.
         """
-        return self.embedding_model.embed_query(text)
+        return await self.embedding_model.aembed_query(text)

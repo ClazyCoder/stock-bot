@@ -108,16 +108,28 @@ class StockRepository(BaseRepository):
         """
         async with self._get_session() as session:
             try:
-                stmt = insert(StockNews).values(stock_news.model_dump())
+                stmt = insert(StockNews).values(
+                    stock_news.model_dump())\
+                    .on_conflict_do_nothing(index_elements=['url'])\
+                    .returning(StockNews.id)
                 result = await session.execute(stmt)
-                await session.commit()
-                stock_news_id = result.scalar_one().id
+                stock_news_id = result.scalar_one_or_none()
+                if not stock_news_id:
+                    self.logger.error(
+                        f"Stock news already exists: {stock_news.url}")
+                    await session.rollback()
+                    return False
+                chunk_data_list = []
                 for chunk in chunks:
-                    chunk.parent_id = stock_news_id
-                    stmt = insert(StockNewsChunk).values(chunk.model_dump())
-                    result = await session.execute(stmt)
-                    await session.commit()
-                return result.rowcount > 0
+                    dumped = chunk.model_dump()
+                    dumped['parent_id'] = stock_news_id
+                    chunk_data_list.append(dumped)
+
+                if chunk_data_list:
+                    await session.execute(insert(StockNewsChunk), chunk_data_list)
+
+                await session.commit()
+                return True
             except Exception as e:
                 self.logger.error(f"Error inserting stock news: {e}")
                 await session.rollback()
@@ -134,13 +146,13 @@ class StockRepository(BaseRepository):
         """
         async with self._get_session() as session:
             try:
-                distance_col = StockNewsChunk.embedding.cosine_similarity(
-                    query_embedding)
+                distance_col = StockNewsChunk.embedding.cosine_distance(
+                    query_embedding).label("distance")
                 subquery = (
                     select(
                         StockNewsChunk.parent_id,
                         distance_col
-                    )
+                    ).where(StockNewsChunk.ticker == ticker)
                     .order_by(distance_col.asc())
                     .limit(candidate_pool)
                     .subquery()
@@ -160,7 +172,7 @@ class StockRepository(BaseRepository):
                     full_content=news.full_content,
                     published_at=news.published_at,
                     url=news.url,
-                ) for news in orm_results]
+                ) for news, score, count in orm_results]
             except Exception as e:
                 self.logger.error(f"Error getting stock news: {e}")
                 raise e
