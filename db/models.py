@@ -78,7 +78,7 @@ class StockNewsChunk(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     ticker = Column(String, index=True, nullable=False)
     parent_id = Column(Integer, ForeignKey(
-        'stock_news.id'), nullable=False)
+        'stock_news.id', ondelete='CASCADE'), nullable=False)
     embedding = Column(Vector(768))
     content = Column(String, nullable=True)
 
