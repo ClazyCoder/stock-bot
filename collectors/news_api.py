@@ -25,7 +25,20 @@ class NewsDataCollector(INewsProvider):
         provider = os.getenv("EMBEDDING_PROVIDER", "ollama")
         model = os.getenv("EMBEDDING_MODEL", "embeddinggemma")
         if provider == "ollama":
-            return OllamaEmbeddings(model=model, base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"), num_gpu=0)
+            base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+            num_gpu_env = os.getenv("OLLAMA_NUM_GPU")
+            num_gpu = None
+            if num_gpu_env is not None:
+                try:
+                    num_gpu = int(num_gpu_env)
+                except ValueError:
+                    self.logger.warning(
+                        f"Invalid OLLAMA_NUM_GPU value '{num_gpu_env}', ignoring and using Ollama defaults"
+                    )
+            kwargs = {"model": model, "base_url": base_url}
+            if num_gpu is not None:
+                kwargs["num_gpu"] = num_gpu
+            return OllamaEmbeddings(**kwargs)
         elif provider == "openai":
             raise NotImplementedError(
                 "OpenAI embedding model is not implemented")
