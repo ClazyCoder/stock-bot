@@ -17,6 +17,9 @@ dotenv.load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+# Constants
+EDGAR_IDENTITY_PLACEHOLDER = "Your Name your.email@example.com"
+
 # Singleton instances
 _stock_repository: StockRepository | None = None
 _user_repository: UserRepository | None = None
@@ -34,8 +37,8 @@ async def get_mcp_client() -> MultiServerMCPClient:
         
         # Validate EDGAR_IDENTITY is set and not the placeholder
         edgar_identity = os.getenv("EDGAR_IDENTITY", "")
-        if not edgar_identity or edgar_identity == "Your Name your.email@example.com":
-            raise ValueError(
+        if not edgar_identity or edgar_identity == EDGAR_IDENTITY_PLACEHOLDER:
+            raise EnvironmentError(
                 "EDGAR_IDENTITY environment variable is not set or is using the placeholder value. "
                 "Please set EDGAR_IDENTITY to your actual name and email (e.g., 'John Doe john.doe@example.com'). "
                 "This is required by the SEC EDGAR API to identify your application."
