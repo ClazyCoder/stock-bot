@@ -3,7 +3,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import asyncio
 import logging
-from .jobs import collect_stock_datas
+from jobs import collect_stock_datas
 
 logger = logging.getLogger(__name__)
 
