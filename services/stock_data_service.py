@@ -41,7 +41,20 @@ class StockDataService:
         Returns:
             List[StockPriceResponse] | None: The stock data for the given ticker.
         """
-        return await self.stock_repository.get_stock_data(ticker)
+        self.logger.info(f"Getting stock data for ticker: {ticker}")
+        try:
+            result = await self.stock_repository.get_stock_data(ticker)
+            if result:
+                self.logger.info(
+                    f"Found {len(result)} stock data records for ticker: {ticker}")
+            else:
+                self.logger.warning(
+                    f"No stock data found for ticker: {ticker}")
+            return result
+        except Exception as e:
+            self.logger.error(
+                f"Error getting stock data for ticker {ticker}: {e}", exc_info=True)
+            return None
 
     async def get_stock_data_llm_context(self, ticker: str, count: int = 5) -> str | None:
         """
@@ -52,13 +65,24 @@ class StockDataService:
         Returns:
             str | None: The stock data for the given ticker in CSV string format. if no data is found, return None.
         """
-        self.logger.info(f"Getting stock data for {ticker} with count {count}")
-        stock_data = await self.stock_repository.get_stock_data(ticker)
-        if not stock_data:
+        self.logger.info(
+            f"Getting stock data LLM context for {ticker} with count {count}")
+        try:
+            stock_data = await self.stock_repository.get_stock_data(ticker)
+            if not stock_data:
+                self.logger.warning(
+                    f"No stock data found for ticker {ticker} when generating LLM context")
+                return None
+            stock_data_llm_context = [
+                StockPriceLLMContext.model_validate(data) for data in stock_data[-count:]]
+            csv_string = to_csv_string(stock_data_llm_context)
+            self.logger.info(
+                f"Generated LLM context for ticker {ticker}: {len(stock_data_llm_context)} records")
+            return csv_string
+        except Exception as e:
+            self.logger.error(
+                f"Error getting stock data LLM context for ticker {ticker}: {e}", exc_info=True)
             return None
-        stock_data_llm_context = [
-            StockPriceLLMContext.model_validate(data) for data in stock_data[-count:]]
-        return to_csv_string(stock_data_llm_context)
 
     async def collect_and_save_stock_news(self, tickers: Union[str, List[str]]) -> bool:
         """
@@ -98,9 +122,22 @@ class StockDataService:
         Returns:
             List[StockNewsResponse] | None: The stock news for the given ticker and query embedding.
         """
-        self.logger.info(f"Getting stock news for {ticker} with query {query}")
-        query_embedding = await self.news_collector.get_embedding(query)
-        return await self.stock_repository.get_stock_news(ticker, query_embedding, top_k, candidate_pool)
+        self.logger.info(
+            f"Getting stock news for {ticker} with query {query}, top_k={top_k}, candidate_pool={candidate_pool}")
+        try:
+            query_embedding = await self.news_collector.get_embedding(query)
+            result = await self.stock_repository.get_stock_news(ticker, query_embedding, top_k, candidate_pool)
+            if result:
+                self.logger.info(
+                    f"Found {len(result)} stock news items for ticker {ticker} with query {query}")
+            else:
+                self.logger.warning(
+                    f"No stock news found for ticker {ticker} with query {query}")
+            return result
+        except Exception as e:
+            self.logger.error(
+                f"Error getting stock news for ticker {ticker} with query {query}: {e}", exc_info=True)
+            return None
 
     async def get_stock_news_llm_context(self, ticker: str, query: str, top_k: int = 5, candidate_pool: int = 20) -> str | None:
         """
@@ -114,8 +151,20 @@ class StockDataService:
             List[str]| None: The List of stock news for the given ticker and query in string format. if no news is found, return empty list. the news should be in the format of "title(published_at)\nfull_content".
         """
         self.logger.info(
-            f"Getting stock news for {ticker} with query {query} and changing to LLM context")
-        stock_news = await self.get_stock_news(ticker, query, top_k, candidate_pool)
-        if stock_news:
-            return [f"Title: {news.title}\nPublished at: {news.published_at}\nFull content: \n{'-'*100}\n{news.full_content}\n{'-'*100}" for news in stock_news]
-        return []
+            f"Getting stock news LLM context for {ticker} with query {query}, top_k={top_k}, candidate_pool={candidate_pool}")
+        try:
+            stock_news = await self.get_stock_news(ticker, query, top_k, candidate_pool)
+            if stock_news:
+                result = [
+                    f"Title: {news.title}\nPublished at: {news.published_at}\nFull content: \n{'-'*100}\n{news.full_content}\n{'-'*100}" for news in stock_news]
+                self.logger.info(
+                    f"Generated LLM context for ticker {ticker}: {len(result)} news items")
+                return result
+            else:
+                self.logger.warning(
+                    f"No stock news found for ticker {ticker} when generating LLM context")
+                return []
+        except Exception as e:
+            self.logger.error(
+                f"Error getting stock news LLM context for ticker {ticker} with query {query}: {e}", exc_info=True)
+            return []

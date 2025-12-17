@@ -41,83 +41,130 @@ class TelegramBot:
         self._register_handlers()
 
     def _register_handlers(self):
+        self.logger.info("Registering command handlers...")
         self.application.add_handler(CommandHandler("auth", self.auth))
         self.application.add_handler(CommandHandler("report", self.report))
         self.application.add_handler(CommandHandler("sub", self.subscribe))
         self.application.add_handler(CommandHandler("unsub", self.unsubscribe))
+        self.logger.info(
+            "Command handlers registered: /auth, /report, /sub, /unsub")
 
     @auth_required
     async def report(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user_id = str(
+            update.effective_user.id) if update.effective_user else "unknown"
         try:
             ticker = "".join(context.args) if context.args else None
             if not ticker:
+                self.logger.warning(
+                    f"Report command called without ticker by user {user_id}")
                 await update.message.reply_text("Please provide a ticker")
                 return
 
             if not re.match(r'^[a-zA-Z0-9._/-]+$', ticker):
+                self.logger.warning(
+                    f"Invalid ticker format '{ticker}' provided by user {user_id}")
                 await update.message.reply_text("Invalid ticker format. Ticker must contain only alphanumeric characters and common separators (., _, -, /)")
                 return
+            self.logger.info(
+                f"Generating report for ticker {ticker} requested by user {user_id}")
             await update.message.reply_text("Generating report... this may take a while...")
             report = await self.llm_module.generate_report_with_ticker(ticker)
             await update.message.reply_text(report)
+            self.logger.info(
+                f"Report generated and sent successfully for ticker {ticker} to user {user_id}")
         except Exception as e:
-            self.logger.error(f"Error during report: {e}")
+            self.logger.error(
+                f"Error during report generation for ticker {ticker} by user {user_id}: {e}", exc_info=True)
             await update.message.reply_text("Error during report - Internal server error")
 
     async def auth(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user_id = str(
+            update.effective_user.id) if update.effective_user else "unknown"
         try:
-            user_id = str(update.effective_user.id)
             password = "".join(context.args) if context.args else ""
             expected_password = os.getenv('TELEGRAM_BOT_PASSWORD', '')
+            self.logger.info(f"Authentication attempt by user {user_id}")
             if secrets.compare_digest(password, expected_password):
                 result = await self.user_service.register_user("telegram", user_id)
                 if result:
+                    self.logger.info(
+                        f"Authentication successful for user {user_id}")
                     await update.message.reply_text("Authentication successful")
                 else:
+                    self.logger.warning(
+                        f"Authentication failed for user {user_id}: registration failed")
                     await update.message.reply_text("Authentication failed")
             else:
+                self.logger.warning(
+                    f"Authentication failed for user {user_id}: invalid password")
                 await update.message.reply_text("Authentication failed")
         except Exception as e:
-            self.logger.error(f"Error during authentication: {e}")
+            self.logger.error(
+                f"Error during authentication for user {user_id}: {e}", exc_info=True)
             await update.message.reply_text("Authentication failed - Internal server error")
 
     @auth_required
     async def subscribe(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user_id = str(
+            update.effective_user.id) if update.effective_user else "unknown"
+        chat_id = str(
+            update.effective_chat.id) if update.effective_chat else "unknown"
         try:
             ticker = "".join(context.args) if context.args else None
             if not ticker:
+                self.logger.warning(
+                    f"Subscribe command called without ticker by user {user_id}")
                 await update.message.reply_text("Please provide a ticker Example: /sub AAPL")
                 return
             ticker = ticker.upper()
+            self.logger.info(
+                f"Subscription request for ticker {ticker} by user {user_id}, chat {chat_id}")
             if await self.user_service.add_subscription(
-                    provider_id=str(update.effective_user.id),
-                    chat_id=str(update.effective_chat.id),
+                    provider_id=user_id,
+                    chat_id=chat_id,
                     ticker=ticker):
                 await self.add_job(ticker)
+                self.logger.info(
+                    f"Subscription successful for ticker {ticker} by user {user_id}")
                 await update.message.reply_text("Subscription successful. The report will be sent to you daily at 9:00 AM KST.")
             else:
+                self.logger.warning(
+                    f"Subscription failed for ticker {ticker} by user {user_id}")
                 await update.message.reply_text("Subscription failed")
 
         except Exception as e:
-            self.logger.error(f"Error during subscription: {e}")
+            self.logger.error(
+                f"Error during subscription for ticker {ticker} by user {user_id}: {e}", exc_info=True)
             await update.message.reply_text("Subscription failed - Internal server error")
 
     @auth_required
     async def unsubscribe(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user_id = str(
+            update.effective_user.id) if update.effective_user else "unknown"
         try:
             ticker = "".join(context.args) if context.args else None
             if not ticker:
+                self.logger.warning(
+                    f"Unsubscribe command called without ticker by user {user_id}")
                 await update.message.reply_text("Please provide a ticker Example: /unsub AAPL")
                 return
             ticker = ticker.upper()
+            self.logger.info(
+                f"Unsubscription request for ticker {ticker} by user {user_id}")
             if await self.user_service.remove_subscription(
-                    provider_id=str(update.effective_user.id),
+                    provider_id=user_id,
                     ticker=ticker):
+                self.logger.info(
+                    f"Unsubscription successful for ticker {ticker} by user {user_id}")
                 await update.message.reply_text("Unsubscription successful")
             else:
+                self.logger.warning(
+                    f"Unsubscription failed for ticker {ticker} by user {user_id}")
                 await update.message.reply_text("Unsubscription failed")
         except Exception as e:
-            self.logger.error(f"Error during unsubscription: {e}")
+            self.logger.error(
+                f"Error during unsubscription for ticker {ticker} by user {user_id}: {e}", exc_info=True)
             await update.message.reply_text("Unsubscription failed - Internal server error")
 
     async def send_subscriptions(self, context: ContextTypes.DEFAULT_TYPE):
@@ -144,15 +191,21 @@ class TelegramBot:
             message_tasks = [context.bot.send_message(
                 chat_id=subscription.chat_id, text=final_report) for subscription in subscriptions]
             for chunk in chunk_list(message_tasks, 20):
-                await asyncio.gather(*chunk, return_exceptions=True)
+                results = await asyncio.gather(*chunk, return_exceptions=True)
+                success_count = sum(
+                    1 for r in results if not isinstance(r, Exception))
+                error_count = len(results) - success_count
+                if error_count > 0:
+                    self.logger.warning(
+                        f"Failed to send {error_count} messages for ticker {ticker}")
                 await asyncio.sleep(1)
                 self.logger.info(
-                    f"Sent {len(chunk)} messages successfully for ticker {ticker}")
+                    f"Sent {success_count}/{len(chunk)} messages successfully for ticker {ticker}")
             self.logger.info(
-                f"Messages sent successfully for ticker {ticker}")
+                f"All messages sent for ticker {ticker} to {len(subscriptions)} subscribers")
         except Exception as e:
             self.logger.error(
-                f"Error during sending subscriptions for ticker {ticker}: {e}")
+                f"Error during sending subscriptions for ticker {ticker}: {e}", exc_info=True)
 
     async def add_job(self, ticker: str):
         job_queue = self.application.job_queue
@@ -174,14 +227,32 @@ class TelegramBot:
         self.logger.info("All jobs loaded")
 
     async def start(self):
-        await self.application.initialize()
-        await self.application.start()
-        await self.application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
-        self.logger.info("Telegram bot started")
-        await self.load_all_jobs()
+        self.logger.info("Starting Telegram bot...")
+        try:
+            await self.application.initialize()
+            self.logger.info("Telegram bot application initialized")
+            await self.application.start()
+            self.logger.info("Telegram bot application started")
+            await self.application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+            self.logger.info("Telegram bot polling started")
+            await self.load_all_jobs()
+            self.logger.info("Telegram bot started successfully")
+        except Exception as e:
+            self.logger.error(
+                f"Error starting Telegram bot: {e}", exc_info=True)
+            raise
 
     async def stop(self):
-        await self.application.updater.stop()
-        await self.application.stop()
-        await self.application.shutdown()
-        self.logger.info("Telegram bot stopped")
+        self.logger.info("Stopping Telegram bot...")
+        try:
+            await self.application.updater.stop()
+            self.logger.info("Telegram bot updater stopped")
+            await self.application.stop()
+            self.logger.info("Telegram bot application stopped")
+            await self.application.shutdown()
+            self.logger.info("Telegram bot shutdown completed")
+            self.logger.info("Telegram bot stopped successfully")
+        except Exception as e:
+            self.logger.error(
+                f"Error stopping Telegram bot: {e}", exc_info=True)
+            raise

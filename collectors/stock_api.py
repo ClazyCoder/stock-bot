@@ -24,15 +24,23 @@ class StockDataCollector(IStockProvider):
         Get the top N stocks in each sector.
         Returns a dictionary with the sector name as the key and the top N stocks as the value.
         '''
+        self.logger.info(
+            f"Getting market leaders for top {top} stocks in each sector")
         main_leaders = {}
         for key, value in main_sectors.items():
             try:
+                self.logger.debug(f"Scanning sector: {key}")
                 sector = yf.Sector(key)
                 top_N = sector.top_companies.head(top).index.to_list()
                 main_leaders[value] = top_N
+                self.logger.info(
+                    f"Found {len(top_N)} top stocks for sector {value}: {top_N}")
             except Exception as e:
-                print(f"Error scanning {key} sector: {e}")
+                self.logger.error(
+                    f"Error scanning {key} sector: {e}", exc_info=True)
                 continue
+        self.logger.info(
+            f"Market leaders collection completed. Found leaders for {len(main_leaders)} sectors")
         return main_leaders
 
     async def fetch_stock_price(self, tickers: Union[str, List[str]], period: str = "1d") -> List[StockPriceCreate]:
@@ -51,21 +59,31 @@ class StockDataCollector(IStockProvider):
         else:
             tickers_list = tickers
 
+        self.logger.info(
+            f"Fetching stock price data for {len(tickers_list)} ticker(s): {tickers_list}, period: {period}")
+
         loop = asyncio.get_running_loop()
-        data = await loop.run_in_executor(
-            None,
-            lambda: yf.download(
-                tickers=" ".join(tickers_list),
-                period=period,
-                auto_adjust=False,
-                group_by='ticker' if len(tickers_list) > 1 else None,
+        try:
+            data = await loop.run_in_executor(
+                None,
+                lambda: yf.download(
+                    tickers=" ".join(tickers_list),
+                    period=period,
+                    auto_adjust=False,
+                    group_by='ticker' if len(tickers_list) > 1 else None,
+                )
             )
-        )
+        except Exception as e:
+            self.logger.error(
+                f"Error downloading stock data for tickers {tickers_list}: {e}", exc_info=True)
+            return []
 
         results: List[StockPriceCreate] = []
 
         # Check if data is empty
         if data.empty or len(data) == 0:
+            self.logger.warning(
+                f"No data returned for tickers: {tickers_list}, period: {period}")
             return results
 
         # yfinance returns a multi-index dataframe with columns (ticker, field) if multiple tickers
@@ -143,11 +161,15 @@ class StockDataCollector(IStockProvider):
                         low_price=float(low_price),
                         volume=int(volume)
                     ))
+                self.logger.info(
+                    f"Successfully processed {len(results)} data points for ticker {ticker}")
             except Exception as e:
                 # Log error but continue processing other tickers
                 # Skip this ticker if any error occurs
                 self.logger.error(
-                    f"Error fetching stock price for ticker {ticker}: {e}. Skipping this ticker.")
+                    f"Error fetching stock price for ticker {ticker}: {e}. Skipping this ticker.", exc_info=True)
                 continue
 
+        self.logger.info(
+            f"Fetched stock price data: {len(results)} total records for {len(tickers_list)} ticker(s)")
         return results

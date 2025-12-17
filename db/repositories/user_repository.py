@@ -16,9 +16,11 @@ class UserRepository(BaseRepository):
             orm_result = result.scalar_one_or_none()
 
             if orm_result:
+                self.logger.info(
+                    f"User found: provider={provider}, provider_id={provider_id}")
                 return UserDTO.model_validate(orm_result)
             else:
-                self.logger.error(
+                self.logger.warning(
                     f"User not found for provider: {provider} and provider_id: {provider_id}")
                 return None
 
@@ -29,10 +31,12 @@ class UserRepository(BaseRepository):
                             is_authorized=True)
                 session.add(user)
                 await session.commit()
+                self.logger.info(
+                    f"Successfully registered user: provider={provider}, provider_id={provider_id}")
                 return True
             except Exception as e:
                 self.logger.error(
-                    f"Failed to register user (provider: {provider}, provider_id: {provider_id}): {e}")
+                    f"Failed to register user (provider: {provider}, provider_id: {provider_id}): {e}", exc_info=True)
                 await session.rollback()
                 return False
 
@@ -45,6 +49,8 @@ class UserRepository(BaseRepository):
             result = await session.execute(stmt)
             orm_result = result.scalar_one_or_none()
             if orm_result:
+                self.logger.info(
+                    f"Authorized user found: provider={provider}, provider_id={provider_id}")
                 return UserDTO.model_validate(orm_result)
             else:
                 self.logger.warning(
@@ -60,10 +66,12 @@ class UserRepository(BaseRepository):
             if orm_result:
                 await session.delete(orm_result)
                 await session.commit()
+                self.logger.info(
+                    f"Successfully removed user: provider={provider}, provider_id={provider_id}")
                 return True
             else:
-                self.logger.error(
-                    f"User not found for provider: {provider} and provider_id: {provider_id}")
+                self.logger.warning(
+                    f"User not found for removal: provider={provider}, provider_id={provider_id}")
                 return False
 
     async def add_subscription(self, provider_id: str, chat_id: str, ticker: str) -> bool:
@@ -78,6 +86,8 @@ class UserRepository(BaseRepository):
                     user_id=user.id, chat_id=chat_id, ticker=ticker)
                 session.add(subscription)
                 await session.commit()
+                self.logger.info(
+                    f"Successfully added subscription: user_id={provider_id}, chat_id={chat_id}, ticker={ticker}")
                 return True
             except IntegrityError as e:
                 self.logger.warning(
@@ -86,7 +96,7 @@ class UserRepository(BaseRepository):
                 return False
             except Exception as e:
                 self.logger.error(
-                    f"Failed to add subscription (user_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}")
+                    f"Failed to add subscription (user_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}", exc_info=True)
                 await session.rollback()
                 return False
 
@@ -103,9 +113,12 @@ class UserRepository(BaseRepository):
                 result = await session.execute(stmt)
                 orm_results = result.scalars().all()
                 if orm_results:
+                    count = len(orm_results)
                     for subscription in orm_results:
                         await session.delete(subscription)
                     await session.commit()
+                    self.logger.info(
+                        f"Successfully removed {count} subscription(s): user_id={provider_id}, ticker={ticker}")
                     return True
                 else:
                     self.logger.warning(
@@ -113,7 +126,7 @@ class UserRepository(BaseRepository):
                     return False
             except Exception as e:
                 self.logger.error(
-                    f"Failed to remove subscription (user_id: {provider_id}, ticker: {ticker}): {e}")
+                    f"Failed to remove subscription (user_id: {provider_id}, ticker: {ticker}): {e}", exc_info=True)
                 await session.rollback()
                 return False
 
@@ -123,24 +136,35 @@ class UserRepository(BaseRepository):
                 Subscription.ticker == ticker, User.is_authorized == True)
             result = await session.execute(stmt)
             orm_results = result.scalars().all()
-            return [SubscriptionDTO.model_validate(subscription) for subscription in orm_results]
+            subscriptions = [SubscriptionDTO.model_validate(
+                subscription) for subscription in orm_results]
+            self.logger.info(
+                f"Found {len(subscriptions)} subscriptions for ticker: {ticker}")
+            return subscriptions
 
     async def get_subscriptions_with_user_id(self, provider_id: str) -> List[SubscriptionDTO]:
         async with self._get_session() as session:
             user = await self.get_user(provider="telegram", provider_id=provider_id)
             if not user:
-                self.logger.error(
+                self.logger.warning(
                     f"User not found for provider: telegram and provider_id: {provider_id}")
                 return []
             stmt = select(Subscription).join(User).where(
                 Subscription.user_id == user.id, User.is_authorized == True)
             result = await session.execute(stmt)
             orm_results = result.scalars().all()
-            return [SubscriptionDTO.model_validate(subscription) for subscription in orm_results]
+            subscriptions = [SubscriptionDTO.model_validate(
+                subscription) for subscription in orm_results]
+            self.logger.info(
+                f"Found {len(subscriptions)} subscriptions for user: provider_id={provider_id}")
+            return subscriptions
 
     async def get_unique_subscriptions_tickers(self) -> List[str]:
         async with self._get_session() as session:
             stmt = select(Subscription.ticker).distinct()
             result = await session.execute(stmt)
             orm_results = result.scalars().all()
-            return list(orm_results)
+            tickers = list(orm_results)
+            self.logger.info(
+                f"Found {len(tickers)} unique subscription tickers")
+            return tickers

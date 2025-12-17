@@ -48,9 +48,12 @@ class StockRepository(BaseRepository):
                     index_elements=['ticker', 'trade_date'])
                 await session.execute(stmt)
                 await session.commit()
+                self.logger.info(
+                    f"Successfully inserted {len(stock_data_list)} stock data records")
                 return True
             except Exception as e:
-                self.logger.error(f"Error inserting stock data: {e}")
+                self.logger.error(
+                    f"Error inserting stock data: {e}", exc_info=True)
                 await session.rollback()
                 return False
 
@@ -67,10 +70,14 @@ class StockRepository(BaseRepository):
                 stmt = select(Stock).where(Stock.ticker == ticker)
                 result = await session.execute(stmt)
                 orm_results = result.scalars().all()
-
-                return [StockPriceResponse.model_validate(stock) for stock in orm_results]
+                stock_responses = [StockPriceResponse.model_validate(
+                    stock) for stock in orm_results]
+                self.logger.info(
+                    f"Fetched {len(stock_responses)} stock data records for ticker: {ticker}")
+                return stock_responses
             except Exception as e:
-                self.logger.error(f"Error fetching stock data: {e}")
+                self.logger.error(
+                    f"Error fetching stock data for ticker {ticker}: {e}", exc_info=True)
                 return None
 
     async def remove_stock_data(self, id: int) -> bool:
@@ -88,9 +95,11 @@ class StockRepository(BaseRepository):
             if orm_result:
                 await session.delete(orm_result)
                 await session.commit()
+                self.logger.info(
+                    f"Successfully removed stock data with id: {id}")
                 return True
             else:
-                self.logger.error(f"Stock data not found for id: {id}")
+                self.logger.warning(f"Stock data not found for id: {id}")
                 return False
 
     async def insert_stock_news(self, stock_news: StockNewsCreate, chunks: List[StockNewsChunkCreate]) -> bool:
@@ -125,9 +134,12 @@ class StockRepository(BaseRepository):
                     await session.execute(insert(StockNewsChunk), chunk_data_list)
 
                 await session.commit()
+                self.logger.info(
+                    f"Successfully inserted stock news: {stock_news.title} (id: {stock_news_id}) with {len(chunks)} chunks")
                 return True
             except Exception as e:
-                self.logger.error(f"Error inserting stock news: {e}")
+                self.logger.error(
+                    f"Error inserting stock news: {e}", exc_info=True)
                 await session.rollback()
                 return False
 
@@ -211,7 +223,12 @@ class StockRepository(BaseRepository):
                 )
                 result = await session.execute(stmt)
                 orm_results = result.all()
-                return [StockNewsResponse.model_validate(news) for news, _score, _count in orm_results]
+                news_responses = [StockNewsResponse.model_validate(
+                    news) for news, _score, _count in orm_results]
+                self.logger.info(
+                    f"Fetched {len(news_responses)} stock news items for ticker: {ticker} with query embedding")
+                return news_responses
             except Exception as e:
-                self.logger.error(f"Error getting stock news: {e}")
+                self.logger.error(
+                    f"Error getting stock news for ticker {ticker}: {e}", exc_info=True)
                 raise e

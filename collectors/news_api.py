@@ -49,10 +49,13 @@ class NewsDataCollector(INewsProvider):
 
         for ticker_symbol in tickers_list:
             try:
+                self.logger.info(f"Fetching news for ticker: {ticker_symbol}")
                 ticker_news: List[Tuple[StockNewsCreate,
                                         List[StockNewsChunkCreate]]] = []
                 search_results = yf.Search(ticker_symbol).search()
                 loop = asyncio.get_running_loop()
+                self.logger.debug(
+                    f"Found {len(search_results.news)} news items from search for ticker: {ticker_symbol}")
 
                 for news_item in search_results.news:
                     try:
@@ -93,9 +96,11 @@ class NewsDataCollector(INewsProvider):
                         )
 
                         ticker_news.append((full_news, chunks))
+                        self.logger.debug(
+                            f"Processed news item: {full_news.title} for ticker {ticker_symbol}")
                     except Exception as e:
                         self.logger.error(
-                            f"Error processing news item for ticker {ticker_symbol}: {e}")
+                            f"Error processing news item for ticker {ticker_symbol}: {e}", exc_info=True)
                         continue
 
                 results.extend(ticker_news)
@@ -103,9 +108,11 @@ class NewsDataCollector(INewsProvider):
                     f"Collected {len(ticker_news)} news items for ticker {ticker_symbol}")
             except Exception as e:
                 self.logger.error(
-                    f"Error fetching news for ticker {ticker_symbol}: {e}")
+                    f"Error fetching news for ticker {ticker_symbol}: {e}", exc_info=True)
                 continue
 
+        self.logger.info(
+            f"News collection completed: {len(results)} total news items for {len(tickers_list)} ticker(s)")
         return results
 
     async def get_embedding(self, text: str) -> List[float]:
@@ -116,4 +123,14 @@ class NewsDataCollector(INewsProvider):
         Returns:
             List[float]: The embedding for the given text.
         """
-        return await self.embedding_model.aembed_query(text)
+        self.logger.debug(
+            f"Getting embedding for text (length: {len(text)} characters)")
+        try:
+            embedding = await self.embedding_model.aembed_query(text)
+            self.logger.debug(
+                f"Successfully generated embedding (dimension: {len(embedding)})")
+            return embedding
+        except Exception as e:
+            self.logger.error(
+                f"Error generating embedding: {e}", exc_info=True)
+            raise
