@@ -39,7 +39,7 @@ class User(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     subscriptions = relationship(
-        'Subscription', back_populates='user', cascade="all, delete-orphan")
+        'Subscription', back_populates='user', cascade="all, delete-orphan", passive_deletes=True)
 
     __table_args__ = (
         UniqueConstraint('provider', 'provider_id', name='uq_provider_user'),
@@ -53,6 +53,7 @@ class Subscription(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    chat_id = Column(Integer, nullable=False)
 
     ticker = Column(String, nullable=False)
 
@@ -71,6 +72,9 @@ class StockNews(Base):
     updated_at = Column(DateTime, server_default=func.now(),
                         onupdate=func.now())
 
+    chunks = relationship("StockNewsChunk", backref="parent",
+                          cascade="all, delete-orphan", passive_deletes=True)
+
 
 class StockNewsChunk(Base):
     __tablename__ = 'stock_news_chunks'
@@ -83,3 +87,5 @@ class StockNewsChunk(Base):
     content = Column(String, nullable=True)
 
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(),
+                        onupdate=func.now())
