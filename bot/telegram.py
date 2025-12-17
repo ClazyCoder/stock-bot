@@ -12,9 +12,9 @@ from typing import Callable
 from functools import wraps
 from datetime import time
 from utils.common import chunk_list
-import pytz
+from zoneinfo import ZoneInfo
 
-kst = pytz.timezone('Asia/Seoul')
+kst = ZoneInfo('Asia/Seoul')
 
 
 def auth_required(func: Callable):
