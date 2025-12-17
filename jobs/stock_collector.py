@@ -27,11 +27,41 @@ async def collect_stock_datas():
 
     # Configuration for API rate limiting
     # Process 5 tickers at a time
-    STOCK_DATA_BATCH_SIZE = int(os.getenv('STOCK_DATA_BATCH_SIZE', '5'))
+    raw_stock_data_batch_size = os.getenv('STOCK_DATA_BATCH_SIZE', '5')
+    try:
+        STOCK_DATA_BATCH_SIZE = int(raw_stock_data_batch_size)
+        if STOCK_DATA_BATCH_SIZE <= 0:
+            raise ValueError("STOCK_DATA_BATCH_SIZE must be a positive integer")
+    except ValueError:
+        logger.warning(
+            "Invalid STOCK_DATA_BATCH_SIZE '%s'; defaulting to 5.",
+            raw_stock_data_batch_size,
+        )
+        STOCK_DATA_BATCH_SIZE = 5
     # Process 3 tickers at a time
-    STOCK_NEWS_BATCH_SIZE = int(os.getenv('STOCK_NEWS_BATCH_SIZE', '3'))
+    raw_stock_news_batch_size = os.getenv('STOCK_NEWS_BATCH_SIZE', '3')
+    try:
+        STOCK_NEWS_BATCH_SIZE = int(raw_stock_news_batch_size)
+        if STOCK_NEWS_BATCH_SIZE <= 0:
+            raise ValueError("STOCK_NEWS_BATCH_SIZE must be a positive integer")
+    except ValueError:
+        logger.warning(
+            "Invalid STOCK_NEWS_BATCH_SIZE '%s'; defaulting to 3.",
+            raw_stock_news_batch_size,
+        )
+        STOCK_NEWS_BATCH_SIZE = 3
     # 2 seconds between batches
-    BATCH_DELAY_SECONDS = float(os.getenv('BATCH_DELAY_SECONDS', '2.0'))
+    raw_batch_delay_seconds = os.getenv('BATCH_DELAY_SECONDS', '2.0')
+    try:
+        BATCH_DELAY_SECONDS = float(raw_batch_delay_seconds)
+        if BATCH_DELAY_SECONDS < 0:
+            raise ValueError("BATCH_DELAY_SECONDS must be non-negative")
+    except ValueError:
+        logger.warning(
+            "Invalid BATCH_DELAY_SECONDS '%s'; defaulting to 2.0.",
+            raw_batch_delay_seconds,
+        )
+        BATCH_DELAY_SECONDS = 2.0
 
     # Collect stock price data in batches
     logger.info("Starting stock price data collection...")
