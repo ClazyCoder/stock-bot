@@ -61,10 +61,10 @@ class TelegramBot:
                 await update.message.reply_text("Please provide a ticker")
                 return
 
-            if not re.match(r'^[a-zA-Z0-9._/-]+$', ticker):
+            if not re.match(r'^[a-zA-Z0-9._-]+$', ticker):
                 self.logger.warning(
                     f"Invalid ticker format '{ticker}' provided by user {user_id}")
-                await update.message.reply_text("Invalid ticker format. Ticker must contain only alphanumeric characters and common separators (., _, -, /)")
+                await update.message.reply_text("Invalid ticker format. Ticker must contain only alphanumeric characters and common separators (., _, -)")
                 return
             self.logger.info(
                 f"Generating report for ticker {ticker} requested by user {user_id}")
