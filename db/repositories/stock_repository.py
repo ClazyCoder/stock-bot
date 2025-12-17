@@ -8,7 +8,7 @@ from sqlalchemy import select, func
 
 class StockRepository(BaseRepository):
 
-    async def insert_stock_data(self, stock_data: List[StockPriceCreate] | StockPriceCreate) -> bool | None:
+    async def insert_stock_data(self, stock_data: List[StockPriceCreate] | StockPriceCreate) -> bool:
         """
         Insert one or multiple stock data entries into the database.
         Accepts a single StockPrice or a list of StockPrice (Pydantic) models.
@@ -16,35 +16,23 @@ class StockRepository(BaseRepository):
         Args:
             stock_data (List[StockPrice] | StockPrice): The stock data to insert.
         Returns:
-            bool | None: True if the stock data was inserted successfully, None if an error occurred.
+            bool: True if the stock data was inserted successfully, False otherwise.
         """
         # Normalize input type to list
         if not isinstance(stock_data, list):
             stock_data = [stock_data]
 
-        stock_models = [
-            {
-                "ticker": sd.ticker,
-                "trade_date": sd.trade_date,
-                "open": sd.open_price,
-                "high": sd.high_price,
-                "low": sd.low_price,
-                "close": sd.close_price,
-                "volume": sd.volume,
-            }
-            for sd in stock_data
-        ]
         async with self._get_session() as session:
             try:
-                stmt = insert(Stock).values(stock_models).on_conflict_do_nothing(
+                stmt = insert(Stock).values(stock_data.model_dump()).on_conflict_do_nothing(
                     index_elements=['ticker', 'trade_date'])
-                result = await session.execute(stmt)
+                await session.execute(stmt)
                 await session.commit()
-                return result.rowcount > 0
+                return True
             except Exception as e:
                 self.logger.error(f"Error inserting stock data: {e}")
                 await session.rollback()
-                return None
+                return False
 
     async def get_stock_data(self, ticker: str) -> List[StockPriceResponse] | None:
         """
@@ -60,19 +48,7 @@ class StockRepository(BaseRepository):
                 result = await session.execute(stmt)
                 orm_results = result.scalars().all()
 
-                pydantic_results = [
-                    StockPriceResponse(
-                        id=stock.id,
-                        ticker=stock.ticker,
-                        trade_date=stock.trade_date,
-                        open_price=stock.open,
-                        high_price=stock.high,
-                        low_price=stock.low,
-                        close_price=stock.close,
-                        volume=stock.volume,
-                    ) for stock in orm_results
-                ]
-                return pydantic_results
+                return [StockPriceResponse.model_validate(stock) for stock in orm_results]
             except Exception as e:
                 self.logger.error(f"Error fetching stock data: {e}")
                 return []
@@ -165,14 +141,7 @@ class StockRepository(BaseRepository):
                 )
                 result = await session.execute(stmt)
                 orm_results = result.all()
-                return [StockNewsResponse(
-                    id=news.id,
-                    ticker=news.ticker,
-                    title=news.title,
-                    full_content=news.full_content,
-                    published_at=news.published_at,
-                    url=news.url,
-                ) for news, score, count in orm_results]
+                return [StockNewsResponse.model_validate(news) for news, _score, _count in orm_results]
             except Exception as e:
                 self.logger.error(f"Error getting stock news: {e}")
                 raise e
