@@ -231,4 +231,4 @@ class StockRepository(BaseRepository):
             except Exception as e:
                 self.logger.error(
                     f"Error getting stock news for ticker {ticker}: {e}", exc_info=True)
-                raise e
+                return None
