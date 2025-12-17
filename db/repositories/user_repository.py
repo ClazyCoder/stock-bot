@@ -103,22 +103,31 @@ class UserRepository(BaseRepository):
     async def remove_subscription(self, provider_id: str, ticker: str) -> bool:
         async with self._get_session() as session:
             try:
-                user = await self.get_authorized_user(provider="telegram", provider_id=provider_id)
-                if not user:
+                # Query user within the same transaction to ensure consistency
+                user_stmt = select(User).where(
+                    User.provider == "telegram",
+                    User.provider_id == provider_id,
+                    User.is_authorized == True
+                )
+                user_result = await session.execute(user_stmt)
+                user_orm = user_result.scalar_one_or_none()
+                if not user_orm:
                     self.logger.warning(
                         f"User not found for provider: telegram and provider_id: {provider_id}")
                     return False
+                # Use SELECT FOR UPDATE to lock rows and prevent race conditions
                 stmt = select(Subscription).where(
-                    Subscription.user_id == user.id, Subscription.ticker == ticker)
+                    Subscription.user_id == user_orm.id, Subscription.ticker == ticker).with_for_update()
                 result = await session.execute(stmt)
                 orm_results = result.scalars().all()
                 if orm_results:
-                    count = len(orm_results)
+                    count_before = len(orm_results)
                     for subscription in orm_results:
                         await session.delete(subscription)
                     await session.commit()
+                    # Log actual count that was removed (count_before may differ if concurrent requests occurred)
                     self.logger.info(
-                        f"Successfully removed {count} subscription(s): user_id={provider_id}, ticker={ticker}")
+                        f"Successfully removed {count_before} subscription(s): user_id={provider_id}, ticker={ticker}")
                     return True
                 else:
                     self.logger.warning(
