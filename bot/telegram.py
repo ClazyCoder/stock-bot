@@ -112,7 +112,6 @@ class TelegramBot:
             ticker = ticker.upper()
             if await self.user_service.remove_subscription(
                     provider_id=str(update.effective_user.id),
-                    chat_id=str(update.effective_chat.id),
                     ticker=ticker):
                 await update.message.reply_text("Unsubscription successful")
             else:

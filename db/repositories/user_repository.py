@@ -90,7 +90,7 @@ class UserRepository(BaseRepository):
                 await session.rollback()
                 return False
 
-    async def remove_subscription(self, provider_id: str, chat_id: str, ticker: str) -> bool:
+    async def remove_subscription(self, provider_id: str, ticker: str) -> bool:
         async with self._get_session() as session:
             try:
                 user = await self.get_authorized_user(provider="telegram", provider_id=provider_id)
@@ -99,20 +99,21 @@ class UserRepository(BaseRepository):
                         f"User not found for provider: telegram and provider_id: {provider_id}")
                     return False
                 stmt = select(Subscription).where(
-                    Subscription.user_id == user.id, Subscription.chat_id == chat_id, Subscription.ticker == ticker)
+                    Subscription.user_id == user.id, Subscription.ticker == ticker)
                 result = await session.execute(stmt)
-                orm_result = result.scalar_one_or_none()
-                if orm_result:
-                    await session.delete(orm_result)
+                orm_results = result.scalars().all()
+                if orm_results:
+                    for subscription in orm_results:
+                        await session.delete(subscription)
                     await session.commit()
                     return True
                 else:
                     self.logger.warning(
-                        f"Subscription not found (user_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker})")
+                        f"Subscription not found (user_id: {provider_id}, ticker: {ticker})")
                     return False
             except Exception as e:
                 self.logger.error(
-                    f"Failed to remove subscription (user_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}")
+                    f"Failed to remove subscription (user_id: {provider_id}, ticker: {ticker}): {e}")
                 await session.rollback()
                 return False
 

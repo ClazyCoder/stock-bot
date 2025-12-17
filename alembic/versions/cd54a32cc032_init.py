@@ -1,8 +1,8 @@
 """init
 
-Revision ID: 4bce1f1fe6f8
+Revision ID: cd54a32cc032
 Revises: 
-Create Date: 2025-12-17 15:46:02.330054
+Create Date: 2025-12-17 16:07:21.125823
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 import pgvector
 
 # revision identifiers, used by Alembic.
-revision: str = '4bce1f1fe6f8'
+revision: str = 'cd54a32cc032'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -100,9 +100,7 @@ def upgrade() -> None:
                               server_default=sa.text('now()'), nullable=True),
                     sa.ForeignKeyConstraint(
                         ['user_id'], ['users.id'], ondelete='CASCADE'),
-                    sa.PrimaryKeyConstraint('id'),
-                    sa.UniqueConstraint('chat_id'),
-                    sa.UniqueConstraint('chat_id', name='uq_chat_id')
+                    sa.PrimaryKeyConstraint('id')
                     )
     op.create_index(op.f('ix_subscriptions_id'),
                     'subscriptions', ['id'], unique=False)

@@ -24,7 +24,18 @@ class StockRepository(BaseRepository):
 
         async with self._get_session() as session:
             try:
-                stmt = insert(Stock).values(stock_data.model_dump()).on_conflict_do_nothing(
+                stock_data_list = [
+                    {
+                        'ticker': stock.ticker,
+                        'trade_date': stock.trade_date,
+                        'open': stock.open_price,
+                        'high': stock.high_price,
+                        'low': stock.low_price,
+                        'close': stock.close_price,
+                        'volume': stock.volume
+                    }
+                    for stock in stock_data]
+                stmt = insert(Stock).values(stock_data_list).on_conflict_do_nothing(
                     index_elements=['ticker', 'trade_date'])
                 await session.execute(stmt)
                 await session.commit()

@@ -49,15 +49,15 @@ class UserDataService:
                 f"Failed to add subscription for provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}")
             return False
 
-    async def remove_subscription(self, provider_id: str, chat_id: str, ticker: str) -> bool:
-        result = await self.user_repository.remove_subscription(provider_id, chat_id, ticker)
+    async def remove_subscription(self, provider_id: str, ticker: str) -> bool:
+        result = await self.user_repository.remove_subscription(provider_id, ticker)
         if result:
             self.logger.info(
-                f"Subscription removed for provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}")
+                f"Subscription removed for provider_id: {provider_id}, ticker: {ticker}")
             return True
         else:
             self.logger.error(
-                f"Failed to remove subscription for provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}")
+                f"Failed to remove subscription for provider_id: {provider_id}, ticker: {ticker}")
             return False
 
     async def get_subscriptions_with_ticker(self, ticker: str) -> List[SubscriptionDTO]:
