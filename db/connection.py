@@ -8,7 +8,10 @@ dotenv.load_dotenv()
 
 DATABASE_URL = os.getenv('DATABASE_URL')
 if DATABASE_URL is None:
-    raise ValueError("DATABASE_URL is not set")
+    raise ValueError(
+        "DATABASE_URL environment variable is not set. Please configure it in your .env file "
+        "or set it in the environment before starting the application."
+    )
 engine = create_async_engine(DATABASE_URL, echo=True, connect_args={})
 
 AsyncSessionLocal = async_sessionmaker(
