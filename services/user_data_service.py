@@ -10,12 +10,17 @@ class UserDataService:
         self.logger = logging.getLogger(__name__)
 
     async def get_user(self, provider: str, provider_id: str) -> UserDTO | None:
-        user = await self.user_repository.get_user(provider, provider_id)
-        if user:
-            return user
-        else:
+        try:
+            user = await self.user_repository.get_user(provider, provider_id)
+            if user:
+                return user
+            else:
+                self.logger.warning(
+                    f"User not found for provider: {provider} and provider_id: {provider_id}")
+                return None
+        except Exception as e:
             self.logger.error(
-                f"User not found for provider: {provider} and provider_id: {provider_id}")
+                f"Database error while fetching user (provider: {provider}, provider_id: {provider_id}): {e}", exc_info=True)
             return None
 
     async def register_user(self, provider: str, provider_id: str) -> bool:
@@ -30,12 +35,17 @@ class UserDataService:
             return False
 
     async def get_authorized_user(self, provider: str, provider_id: str) -> UserDTO | None:
-        user = await self.user_repository.get_authorized_user(provider, provider_id)
-        if user:
-            return user
-        else:
+        try:
+            user = await self.user_repository.get_authorized_user(provider, provider_id)
+            if user:
+                return user
+            else:
+                self.logger.warning(
+                    f"Authorized user not found for provider: {provider} and provider_id: {provider_id}")
+                return None
+        except Exception as e:
             self.logger.error(
-                f"Authorized user not found for provider: {provider} and provider_id: {provider_id}")
+                f"Database error while fetching authorized user (provider: {provider}, provider_id: {provider_id}): {e}", exc_info=True)
             return None
 
     async def add_subscription(self, provider_id: str, chat_id: str, ticker: str) -> bool:
