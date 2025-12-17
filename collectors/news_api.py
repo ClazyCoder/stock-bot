@@ -13,11 +13,19 @@ from typing import Tuple
 
 
 class NewsDataCollector(INewsProvider):
-    def __init__(self):
+    def __init__(self, chunk_size: Union[int, None] = None, chunk_overlap: Union[int, None] = None):
         self.logger = logging.getLogger(__name__)
         self.embedding_model = self._build_embedding_model()
+
+        # Resolve chunking configuration: prefer explicit arguments, then environment, then defaults.
+        resolved_chunk_size = chunk_size if chunk_size is not None else int(os.getenv("NEWS_CHUNK_SIZE", "1000"))
+        resolved_chunk_overlap = chunk_overlap if chunk_overlap is not None else int(os.getenv("NEWS_CHUNK_OVERLAP", "200"))
+
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, chunk_overlap=200, separators=["\n\n", "\n", ".", " ", ""])
+            chunk_size=resolved_chunk_size,
+            chunk_overlap=resolved_chunk_overlap,
+            separators=["\n\n", "\n", ".", " ", ""]
+        )
         self.logger.info(f"News data collector built successfully")
 
     def _build_embedding_model(self):
