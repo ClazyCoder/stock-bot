@@ -79,7 +79,7 @@ class UserRepository(BaseRepository):
             try:
                 user = await self.get_authorized_user(provider="telegram", provider_id=provider_id)
                 if not user:
-                    self.logger.error(
+                    self.logger.warning(
                         f"User not found for provider: telegram and provider_id: {provider_id}")
                     return False
                 subscription = Subscription(
@@ -105,7 +105,7 @@ class UserRepository(BaseRepository):
             try:
                 user = await self.get_authorized_user(provider="telegram", provider_id=provider_id)
                 if not user:
-                    self.logger.error(
+                    self.logger.warning(
                         f"User not found for provider: telegram and provider_id: {provider_id}")
                     return False
                 stmt = select(Subscription).where(
