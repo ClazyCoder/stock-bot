@@ -1,8 +1,8 @@
-"""init
+"""v0.0.1
 
-Revision ID: cd54a32cc032
+Revision ID: 5f6b883c9830
 Revises: 
-Create Date: 2025-12-17 16:07:21.125823
+Create Date: 2025-12-17 19:08:51.385959
 
 """
 from typing import Sequence, Union
@@ -11,8 +11,9 @@ from alembic import op
 import sqlalchemy as sa
 import pgvector
 
+
 # revision identifiers, used by Alembic.
-revision: str = 'cd54a32cc032'
+revision: str = '5f6b883c9830'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,13 +26,13 @@ def upgrade() -> None:
     op.create_table('stock_data',
                     sa.Column('id', sa.Integer(),
                               autoincrement=True, nullable=False),
-                    sa.Column('ticker', sa.String(), nullable=True),
-                    sa.Column('trade_date', sa.DateTime(), nullable=True),
-                    sa.Column('open', sa.Float(), nullable=True),
-                    sa.Column('high', sa.Float(), nullable=True),
-                    sa.Column('low', sa.Float(), nullable=True),
-                    sa.Column('close', sa.Float(), nullable=True),
-                    sa.Column('volume', sa.Integer(), nullable=True),
+                    sa.Column('ticker', sa.String(), nullable=False),
+                    sa.Column('trade_date', sa.DateTime(), nullable=False),
+                    sa.Column('open_price', sa.Float(), nullable=False),
+                    sa.Column('high_price', sa.Float(), nullable=False),
+                    sa.Column('low_price', sa.Float(), nullable=False),
+                    sa.Column('close_price', sa.Float(), nullable=False),
+                    sa.Column('volume', sa.Integer(), nullable=False),
                     sa.Column('created_at', sa.DateTime(),
                               server_default=sa.text('now()'), nullable=True),
                     sa.Column('updated_at', sa.DateTime(),
@@ -100,7 +101,9 @@ def upgrade() -> None:
                               server_default=sa.text('now()'), nullable=True),
                     sa.ForeignKeyConstraint(
                         ['user_id'], ['users.id'], ondelete='CASCADE'),
-                    sa.PrimaryKeyConstraint('id')
+                    sa.PrimaryKeyConstraint('id'),
+                    sa.UniqueConstraint('user_id', 'chat_id', 'ticker',
+                                        name='uq_user_chat_ticker')
                     )
     op.create_index(op.f('ix_subscriptions_id'),
                     'subscriptions', ['id'], unique=False)
