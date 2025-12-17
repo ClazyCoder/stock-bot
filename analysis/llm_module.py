@@ -1,4 +1,3 @@
-from codecs import getdecoder
 from langchain_ollama import ChatOllama
 import os
 from langchain.agents import create_agent
