@@ -3,7 +3,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import asyncio
 import logging
-from jobs import collect_stock_datas
+from jobs import collect_all_stock_data
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ def setup_scheduler() -> AsyncIOScheduler:
 
     # Collect stock data and news daily at 9:00 AM
     scheduler.add_job(
-        func=lambda: asyncio.create_task(collect_stock_datas()),
+        func=lambda: asyncio.create_task(collect_all_stock_data()),
         trigger=CronTrigger(day_of_week='mon-fri', hour=9, minute=0),
         id='stock_collector',
         max_instances=1,

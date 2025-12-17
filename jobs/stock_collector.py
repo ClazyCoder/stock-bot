@@ -4,7 +4,7 @@ import os
 import asyncio
 
 
-async def collect_stock_datas():
+async def collect_all_stock_data():
     """
     Collect stock data and news for all subscribed tickers.
     Processes tickers in batches to respect yfinance API limits.
@@ -31,7 +31,8 @@ async def collect_stock_datas():
     try:
         STOCK_DATA_BATCH_SIZE = int(raw_stock_data_batch_size)
         if STOCK_DATA_BATCH_SIZE <= 0:
-            raise ValueError("STOCK_DATA_BATCH_SIZE must be a positive integer")
+            raise ValueError(
+                "STOCK_DATA_BATCH_SIZE must be a positive integer")
     except ValueError:
         logger.warning(
             "Invalid STOCK_DATA_BATCH_SIZE '%s'; defaulting to 5.",
@@ -43,7 +44,8 @@ async def collect_stock_datas():
     try:
         STOCK_NEWS_BATCH_SIZE = int(raw_stock_news_batch_size)
         if STOCK_NEWS_BATCH_SIZE <= 0:
-            raise ValueError("STOCK_NEWS_BATCH_SIZE must be a positive integer")
+            raise ValueError(
+                "STOCK_NEWS_BATCH_SIZE must be a positive integer")
     except ValueError:
         logger.warning(
             "Invalid STOCK_NEWS_BATCH_SIZE '%s'; defaulting to 3.",
