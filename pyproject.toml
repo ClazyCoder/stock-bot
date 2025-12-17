@@ -6,14 +6,21 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.21.0",
+    "alembic>=1.17.2",
+    "asyncpg>=0.31.0",
+    "edgartools[ai]>=5.0.2",
     "fastapi>=0.124.0",
     "langchain>=1.1.2",
+    "langchain-community>=0.4.1",
+    "langchain-mcp-adapters>=0.2.1",
     "langchain-ollama>=1.0.0",
+    "pgvector>=0.4.2",
     "pydantic>=2.12.5",
     "pytest>=9.0.2",
     "python-dotenv>=1.2.1",
-    "python-telegram-bot>=22.5",
-    "sqlalchemy>=2.0.44",
+    "python-telegram-bot[job-queue]>=22.5",
+    "sqlalchemy[asyncio]>=2.0.44",
+    "trafilatura>=2.0.0",
     "uvicorn[standard]>=0.38.0",
     "yfinance>=0.2.66",
 ]

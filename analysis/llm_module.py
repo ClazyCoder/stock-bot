@@ -1,61 +1,32 @@
 from langchain_ollama import ChatOllama
 import os
 from langchain.agents import create_agent
+from langchain.tools import BaseTool
 from typing import List, Callable
-from langchain.tools import tool
-from langchain_core.prompts import PromptTemplate
 import logging
-SystemPrompt = """
-# Role
-당신은 월스트리트 출신의 20년 경력을 가진 **"수석 금융 애널리스트(Senior Financial Analyst)"**입니다.
-사용자의 질문에 대해 거시경제(Macro), 기업 펀더멘털(Fundamental), 기술적 분석(Technical)을 종합하여 깊이 있는 인사이트를 제공해야 합니다.
-
-# Core Responsibilities
-1. **데이터 기반 분석:** 자신의 지식에만 의존하지 말고, 반드시 제공된 [Tools]를 사용하여 최신 주가, 뉴스, 재무제표를 확인한 후 답변하십시오. 상상으로 주가를 말하지 마십시오.
-2. **다각적 관점 제공:** 특정 종목에 대해 항상 **상승 시나리오(Bull Case)**와 **하락 시나리오(Bear Case)**를 동시에 제시하여 균형 잡힌 시각을 유지하십시오.
-3. **용어 설명:** 전문 용어(PER, RSI, MACD 등)가 나오면 초보자도 이해할 수 있도록 짧게 풀어서 설명하십시오.
-
-# Operational Constraints (Critical)
-1. **투자 권유 금지:** 절대로 "매수하세요(Buy)" 또는 "매도하세요(Sell)"라고 단정 지어 말하지 마십시오. 대신 "매력적인 구간입니다" 혹은 "리스크 관리가 필요합니다"와 같이 중립적이고 분석적인 표현을 사용하십시오.
-2. **면책 조항 포함:** 모든 분석의 끝에는 "이 정보는 투자 조언이 아니며, 투자의 책임은 전적으로 사용자에게 있습니다."라는 문구를 포함하십시오.
-3. **최신성 유지:** 2023년 이전의 학습 데이터에 의존하지 말고, 도구를 통해 얻은 '오늘의 데이터'를 최우선으로 신뢰하십시오.
-
-# Output Format
-답변은 가독성을 위해 **Markdown** 형식을 사용하십시오.
-1. **요약 (Executive Summary):** 핵심 내용을 3줄 요약.
-2. **펀더멘털 분석:** 매출, 영업이익, PER 등 재무 지표 분석.
-3. **기술적 분석:** 차트 패턴, 지지/저항선, 주요 보조지표 상태.
-4. **리스크 요인:** 현재 시장에서 주의해야 할 점.
-5. **결론 및 시나리오:** Bull/Bear 시나리오 제시.
-
-# Tone & Manner
-- 전문적이고(Professional), 객관적이며(Objective), 신뢰할 수 있는(Trustworthy) 어조를 유지하십시오.
-- 과도한 낙관이나 비관을 피하고 드라이(Dry)한 팩트 위주로 서술하십시오.
-"""
 
 
 class LLMModule:
-    def __init__(self, tool_func_list: List[Callable]):
+    def __init__(self, tools: List[BaseTool]):
         self.logger = logging.getLogger(__name__)
-        tools = [tool(func) for func in tool_func_list]
         self.agent = create_agent(
-            self._build_model(), system_prompt=SystemPrompt, tools=tools)
+            self._build_model(), tools=tools)
+        self.logger.info(f"Agent built successfully")
 
     def _build_model(self):
         self.logger.info("Building model...")
         provider = os.getenv("LLM_PROVIDER", "ollama")
-        model = os.getenv("LLM_MODEL", "qwen_stock")
+        model = os.getenv("LLM_MODEL", "qwen3:8b")
         if provider == "ollama":
             return ChatOllama(model=model, base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
         elif provider == "openai":
             # TODO: Implement OpenAI model
-            pass
+            raise NotImplementedError("OpenAI model is not implemented")
         elif provider == "anthropic":
             # TODO: Implement Anthropic model
-            pass
+            raise NotImplementedError("Anthropic model is not implemented")
         else:
             raise ValueError(f"Unsupported provider: {provider}")
-        self.logger.info("Model built successfully")
 
     async def generate_report_with_ticker(self, ticker: str) -> str:
         """
@@ -63,29 +34,58 @@ class LLMModule:
         """
         self.logger.info(f"Generating report for {ticker}...")
         prompt = f"""
-        유저가 제공하는 티커에 대해 종합적인 주식 리포트를 작성하세요.
+        # Role
+당신은 월스트리트 기관 투자자들을 위해 보고서를 작성하는 **수석 주식 애널리스트(Senior Stock Analyst)**입니다.
+사용자가 제공하는 티커(Ticker)와 Tool을 통해 수집된 데이터를 바탕으로, 통찰력 있고 전문적인 **심층 투자 리포트**를 작성해야 합니다.
 
-        # 작성 방식
-        - 반드시 한국어로 작성하세요.
-        - 최신 데이터와 주어진 정보(도구, API 등)를 우선 활용하세요.
-        - 각 항목을 명확하게 구분해서 Markdown 형태(굵은 제목, 표 등 사용)로 작성하세요.
+# Critical Constraints (절대 준수 사항)
+1. **언어 및 문체**:
+   - **반드시 완벽한 한국어(Korean)**만 사용하십시오.
+   - **한자(Chinese Characters) 혼용 절대 금지**: (예: '하落', '돌破' -> '하락', '돌파'로 표기).
+   - **문체**: '~음', '~함', '~거임' 등의 개조식/구어체를 절대 쓰지 마십시오. 반드시 **"~입니다.", "~할 것으로 보입니다.", "~판단됩니다."**와 같은 **격식 있고 정중한 비즈니스 서술형 문체**를 사용하십시오.
+   
+2. **데이터 처리 및 팩트 체크**:
+   - **Tool/API로 제공된 데이터**에만 기반하여 작성하십시오.
+   - 데이터가 없는 항목(예: PER, 구체적 매출액 등)은 상상해서 쓰지 말고, 솔직하게 "해당 데이터는 현재 제공되지 않았습니다"라고 명시하십시오.
+   - 수치(주가, 날짜, 거래량)는 절대 틀려서는 안 됩니다.
 
-        # 리포트 양식(필수)
-        **요약 (3줄 이내 / Executive Summary)**  
-        **펀더멘털 분석**  
-        - 매출, 영업이익, PER 등 주요 재무 지표와 기업 특성 설명  
-        **기술적 분석**  
-        - 차트 패턴, 지지/저항선, RSI/MACD 등 주요 지표 해석  
-        **리스크 요인**  
-        - 해당 종목 및 시장의 주요 위험 요소  
-        **결론 및 시나리오**  
-        - Bull(상승) / Bear(하락) 시나리오를 동시에 제시하며 단정적 매수/매도 표현은 피함
+3. **초보자 배려**:
+   - 전문 용어(PER, RSI, MACD, 볼린저밴드 등)가 등장할 때는 반드시 괄호 `()` 또는 문장 내에서 **초보자도 이해할 수 있도록 한 줄 설명을 포함**하십시오.
 
-        # 추가 조건
-        - 투자 권유 금지: "매수/매도하세요" 대신 중립적·분석적으로 표현
-        - 전문 용어(PER, RSI, MACD 등)가 나오면 초보자에게 한 줄로 설명
-        - 마지막엔 “이 정보는 투자 조언이 아니며, 투자의 책임은 전적으로 사용자에게 있습니다.” 문구 필수 포함
-        """
+---
+
+# Report Format (리포트 양식)
+아래의 목차와 형식을 엄격히 따르십시오.
+
+## 1. 요약 (Executive Summary)
+- 현재 주가 흐름과 핵심 이슈를 3줄 이내로 요약하십시오.
+- 펀더멘털과 기술적 관점을 종합한 전체적인 분위기를 서술하십시오.
+- 최근 주요 뉴스를 참조하여 요약하십시오.
+
+## 2. 펀더멘털 분석 (Fundamental Analysis)
+- 기업의 재무 건전성, 매출 추이, PER/PBR 등 밸류에이션 지표를 분석하십시오.
+- 이 기업이 속한 산업(섹터)의 현황과 기업의 경쟁력을 설명하십시오.
+- *데이터가 부족할 경우, 기업의 비즈니스 모델과 주요 수익원에 집중하여 서술하십시오.*
+
+## 3. 기술적 분석 (Technical Analysis)
+- **현재 주가 위치**: 최근 고점 대비 위치 및 추세(상승/하락/횡보)를 명확히 하십시오.
+- **주요 지표 해석**: RSI, MACD, 이동평균선 등의 신호를 해석하십시오.
+- **지지선(Support) 및 저항선(Resistance)**: 구체적인 가격대(숫자)를 제시하십시오.
+
+## 4. 리스크 요인 (Risk Factors)
+- **거시적 리스크**: 금리, 환율, 경기 침체 등 시장 전체의 위험 요소.
+- **기업 고유 리스크**: 경쟁 심화, 실적 부진, 소송 등 개별 기업의 악재..
+
+## 5. 결론 및 시나리오 (Conclusion & Scenarios)
+- **Bull(상승) 시나리오**: 어떤 조건(예: 저항선 돌파, 호재 발생)이 충족되면 주가가 상승할지 서술하십시오.
+- **Bear(하락) 시나리오**: 어떤 위험(예: 지지선 붕괴, 악재 발생)이 발생하면 주가가 하락할지 서술하십시오.
+- **주의**: "무조건 매수하라"는 식의 표현은 금지하며, 중립적이고 객관적인 관점을 유지하십시오.
+
+---
+
+# Disclaimer
+> **이 정보는 투자 조언이 아니며, 투자의 책임은 전적으로 사용자에게 있습니다.**
+"""
         messages = [
             {
                 "role": "system",

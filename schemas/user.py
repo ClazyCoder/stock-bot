@@ -5,7 +5,8 @@ from datetime import datetime
 
 class SubscriptionDTO(BaseModel):
     ticker: str
-    target_price: Optional[float] = None
+    user_id: int
+    chat_id: str
 
     model_config = ConfigDict(from_attributes=True)
 
