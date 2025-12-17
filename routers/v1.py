@@ -72,8 +72,7 @@ async def collect_stock_news(stock_req: StockSymbol, stock_service: StockDataSer
 
 @router.get("/stock_news")
 async def get_stock_news(ticker: str, query: str, stock_service: StockDataService = Depends(get_stock_service)):
-    query_embedding = await stock_service.get_embedding(query)
-    stock_news = await stock_service.get_stock_news(ticker, query_embedding, top_k=5, candidate_pool=20)
+    stock_news = await stock_service.get_stock_news(ticker, query, top_k=5, candidate_pool=20)
     if stock_news:
         return {
             "success": True,

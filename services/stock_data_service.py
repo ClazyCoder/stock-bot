@@ -76,25 +76,17 @@ class StockDataService:
                 return True
         return False
 
-    async def get_stock_news(self, ticker: str, query_embedding: List[float], top_k: int = 5, candidate_pool: int = 20) -> StockNewsResponse | None:
+    async def get_stock_news(self, ticker: str, query: str, top_k: int = 5, candidate_pool: int = 20) -> StockNewsResponse | None:
         """
         Get stock news from the database.
         Args:
             ticker (str): The ticker of the stock to get news for.
-            query_embedding (List[float]): The query embedding to get news for.
+            query (str): The query to get news for.
             top_k (int): The number of news to get.
             candidate_pool (int): The number of chunks to get.
         Returns:
             List[StockNewsResponse] | None: The stock news for the given ticker and query embedding.
         """
+        self.logger.info(f"Getting stock news for {ticker} with query {query}")
+        query_embedding = await self.news_collector.get_embedding(query)
         return await self.stock_repository.get_stock_news(ticker, query_embedding, top_k, candidate_pool)
-
-    async def get_embedding(self, text: str) -> List[float]:
-        """
-        Get the embedding for the given text.
-        Args:
-            text (str): The text to get the embedding for.
-        Returns:
-            List[float]: The embedding for the given text.
-        """
-        return await self.news_collector.get_embedding(text)
