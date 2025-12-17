@@ -1,6 +1,7 @@
 import yfinance as yf
 import asyncio
 import pandas as pd
+import numpy as np
 from interfaces import IStockProvider
 from schemas.stock import StockPriceCreate, StockPriceResponse
 from typing import List
@@ -106,13 +107,23 @@ class StockDataCollector(IStockProvider):
                 )
 
             for idx in range(len(stock_df)):
+                close_price = stock_df['Close'].iloc[idx]
+                open_price = stock_df['Open'].iloc[idx]
+                high_price = stock_df['High'].iloc[idx]
+                low_price = stock_df['Low'].iloc[idx]
+                volume = stock_df['Volume'].iloc[idx]
+                
+                # Skip rows with NaN or None values in required fields
+                if pd.isna(close_price) or pd.isna(open_price) or pd.isna(high_price) or pd.isna(low_price) or pd.isna(volume):
+                    continue
+                
                 results.append(StockPriceCreate(
                     ticker=ticker,
                     trade_date=stock_df.index[idx],
-                    close_price=float(stock_df['Close'].iloc[idx].item()),
-                    open_price=float(stock_df['Open'].iloc[idx].item()),
-                    high_price=float(stock_df['High'].iloc[idx].item()),
-                    low_price=float(stock_df['Low'].iloc[idx].item()),
-                    volume=int(stock_df['Volume'].iloc[idx].item())
+                    close_price=float(close_price),
+                    open_price=float(open_price),
+                    high_price=float(high_price),
+                    low_price=float(low_price),
+                    volume=int(volume)
                 ))
         return results

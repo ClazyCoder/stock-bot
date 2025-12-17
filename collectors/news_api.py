@@ -51,10 +51,9 @@ class NewsDataCollector(INewsProvider):
             results = json.loads(extracted_content)
             chunked_contents = await loop.run_in_executor(
                 None, lambda: self.text_splitter.split_text(results['text']))
-            for content in chunked_contents:
-                embedding = await self.embedding_model.aembed_query(content)
-                chunks.append(StockNewsChunkCreate(
-                    ticker=ticker, title=results['title'], content=content, embedding=embedding))
+            embeddings = await self.embedding_model.aembed_documents(chunked_contents)
+            chunks.extend([StockNewsChunkCreate(
+                ticker=ticker, title=results['title'], content=content, embedding=embedding) for content, embedding in zip(chunked_contents, embeddings)])
         full_news = StockNewsCreate(
             ticker=ticker, title=results['title'], full_content=results['text'], published_at=results['date'], url=news['link'])
         return full_news, chunks
