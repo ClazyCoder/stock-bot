@@ -139,7 +139,7 @@ class StockDataService:
                 f"Error getting stock news for ticker {ticker} with query {query}: {e}", exc_info=True)
             return None
 
-    async def get_stock_news_llm_context(self, ticker: str, query: str, top_k: int = 5, candidate_pool: int = 20) -> str | None:
+    async def get_stock_news_llm_context(self, ticker: str, query: str, top_k: int = 5, candidate_pool: int = 20) -> List[str]:
         """
         Get stock news from the database and convert it to LLM context.
         Args:
@@ -148,7 +148,7 @@ class StockDataService:
             top_k (int): The number of news to get.
             candidate_pool (int): The number of chunks to get.
         Returns:
-            List[str]| None: The List of stock news for the given ticker and query in string format. if no news is found, return empty list. the news should be in the format of "title(published_at)\nfull_content".
+            List[str]: The List of stock news for the given ticker and query in string format. Returns empty list if no news is found. The news format is "Title: {title}\nPublished at: {published_at}\nFull content: \n{full_content}".
         """
         self.logger.info(
             f"Getting stock news LLM context for {ticker} with query {query}, top_k={top_k}, candidate_pool={candidate_pool}")
