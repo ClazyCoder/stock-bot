@@ -111,7 +111,7 @@ class TelegramBot:
         chat_id = str(
             update.effective_chat.id) if update.effective_chat else "unknown"
         try:
-            ticker = "".join(context.args) if context.args else None
+            ticker = "".join(context.args) if context.args else ""
             if not ticker:
                 self.logger.warning(
                     f"Subscribe command called without ticker by user {user_id}")
