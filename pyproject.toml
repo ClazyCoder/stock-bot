@@ -19,7 +19,6 @@ dependencies = [
     "pytest>=9.0.2",
     "python-dotenv>=1.2.1",
     "python-telegram-bot[job-queue]>=22.5",
-    "pytz>=2025.2",
     "sqlalchemy[asyncio]>=2.0.44",
     "trafilatura>=2.0.0",
     "uvicorn[standard]>=0.38.0",
