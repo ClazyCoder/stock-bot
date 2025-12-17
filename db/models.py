@@ -58,6 +58,7 @@ class Subscription(Base):
     ticker = Column(String, nullable=False)
 
     user = relationship('User', back_populates='subscriptions')
+    created_at = Column(DateTime, server_default=func.now())
 
 
 class StockNews(Base):
