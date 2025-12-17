@@ -120,10 +120,9 @@ class StockRepository(BaseRepository):
                 result = await session.execute(stmt)
                 stock_news_id = result.scalar_one_or_none()
                 if not stock_news_id:
-                    self.logger.error(
-                        f"Stock news already exists: {stock_news.url}")
-                    await session.rollback()
-                    return False
+                    self.logger.info(
+                        f"Stock news already exists, skipping insert: {stock_news.url}")
+                    return True
                 chunk_data_list = []
                 for chunk in chunks:
                     dumped = chunk.model_dump()
