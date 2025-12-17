@@ -11,6 +11,7 @@ from analysis.llm_module import LLMModule
 from langchain.tools import tool
 from typing import List, Callable
 from langchain.tools import BaseTool
+from scheduler import setup_scheduler
 dotenv.load_dotenv()
 
 
@@ -22,7 +23,7 @@ def setup_httpx_logger():
 
     for logger_name in target_loggers:
         logger = logging.getLogger(logger_name)
-        logger.setLevel(logging.INFO)  # 기록할 레벨 설정
+        logger.setLevel(logging.INFO)
 
         logger.propagate = False
 
@@ -48,20 +49,6 @@ async def build_tools(tool_func_list: List[Callable]) -> List[BaseTool]:
     return tools + mcp_tools
 
 
-async def collect_stock_datas():
-    logger = logging.getLogger(__name__)
-    stock_service = get_stock_service()
-    user_service = get_user_data_service()
-    tickers = await user_service.get_unique_subscriptions_tickers()
-    logger.info(f"Found {len(tickers)} tickers")
-    for ticker in tickers:
-        await stock_service.collect_and_save(ticker, "1d")
-        logger.info(f"Collected stock data for {ticker}")
-        await stock_service.collect_and_save_stock_news(ticker)
-        logger.info(f"Collected stock news for {ticker}")
-    logger.info("Collected all stock datas")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger = logging.getLogger(__name__)
@@ -70,19 +57,23 @@ async def lifespan(app: FastAPI):
     # Use singleton services (Bot and FastAPI share the same instances)
     user_service = get_user_data_service()
     stock_service = get_stock_service()
+    scheduler = setup_scheduler()
     llm_module = LLMModule(
         tools=await build_tools([stock_service.get_stock_data_llm_context, stock_service.get_stock_news_llm_context]))
     bots = [TelegramBot(token=os.getenv('TELEGRAM_BOT_TOKEN'),
                         user_service=user_service, stock_service=stock_service, llm_module=llm_module)]
     for bot in bots:
         await bot.start()
-
+    scheduler.start()
+    logger.info("Scheduler started")
     yield
 
     logger.info("Stopping stock-bot Services...")
     logger.info("Stopping stock-bot")
     for bot in bots:
         await bot.stop()
+    scheduler.shutdown()
+
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(v1.router, prefix="/api")
