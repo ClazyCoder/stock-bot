@@ -201,6 +201,18 @@ class StockRepository(BaseRepository):
         Returns:
             List[StockNewsResponse] | None: The stock news for the given ticker and query embedding.
         """
+        # Validate query_embedding dimension to match the pgvector column (e.g., 768)
+        expected_dim = 768
+        if not isinstance(query_embedding, list):
+            self.logger.error(
+                f"Invalid query_embedding type for ticker {ticker}: expected list, got {type(query_embedding).__name__}"
+            )
+            raise TypeError("query_embedding must be a list of floats")
+        if len(query_embedding) != expected_dim:
+            self.logger.error(
+                f"Invalid query_embedding length for ticker {ticker}: expected {expected_dim}, got {len(query_embedding)}"
+            )
+            raise ValueError(f"query_embedding must have length {expected_dim}")
         async with self._get_session() as session:
             try:
                 distance_col = StockNewsChunk.embedding.cosine_distance(
