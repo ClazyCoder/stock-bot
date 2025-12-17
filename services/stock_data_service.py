@@ -90,3 +90,21 @@ class StockDataService:
         self.logger.info(f"Getting stock news for {ticker} with query {query}")
         query_embedding = await self.news_collector.get_embedding(query)
         return await self.stock_repository.get_stock_news(ticker, query_embedding, top_k, candidate_pool)
+
+    async def get_stock_news_llm_context(self, ticker: str, query: str, top_k: int = 5, candidate_pool: int = 20) -> str | None:
+        """
+        Get stock news from the database and convert it to LLM context.
+        Args:
+            ticker (str): The ticker of the stock to get news for.
+            query (str): The query to get news for.
+            top_k (int): The number of news to get.
+            candidate_pool (int): The number of chunks to get.
+        Returns:
+            List[str]| None: The List of stock news for the given ticker and query in string format. if no news is found, return empty list. the news should be in the format of "title(published_at)\nfull_content".
+        """
+        self.logger.info(
+            f"Getting stock news for {ticker} with query {query} and changing to LLM context")
+        stock_news = await self.get_stock_news(ticker, query, top_k, candidate_pool)
+        if stock_news:
+            return [f"Title: {news.title}\nPublished at: {news.published_at}\nFull content: \n{'-'*100}\n{news.full_content}\n{'-'*100}" for news in stock_news]
+        return []

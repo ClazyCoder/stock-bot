@@ -61,7 +61,7 @@ class UserRepository(BaseRepository):
                         ticker=subscription.ticker) for subscription in orm_result.subscriptions]
                 )
             else:
-                self.logger.error(
+                self.logger.warning(
                     f"Authorized user not found for provider: {provider} and provider_id: {provider_id}")
                 return None
 
