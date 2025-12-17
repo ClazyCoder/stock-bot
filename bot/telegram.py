@@ -117,7 +117,12 @@ class TelegramBot:
                     f"Subscribe command called without ticker by user {user_id}")
                 await update.message.reply_text("Please provide a ticker Example: /sub AAPL")
                 return
-            ticker = ticker.upper()
+            ticker = ticker.strip().upper()
+            if not re.fullmatch(r"[A-Z0-9.\-]+", ticker):
+                self.logger.warning(
+                    f"Subscribe command called with invalid ticker '{ticker}' by user {user_id}")
+                await update.message.reply_text("Invalid ticker format. Please provide a valid ticker Example: /sub AAPL")
+                return
             self.logger.info(
                 f"Subscription request for ticker {ticker} by user {user_id}, chat {chat_id}")
             if await self.user_service.add_subscription(
