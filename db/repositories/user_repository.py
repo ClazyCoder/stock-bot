@@ -133,7 +133,7 @@ class UserRepository(BaseRepository):
     async def get_subscriptions_with_ticker(self, ticker: str) -> List[SubscriptionDTO]:
         async with self._get_session() as session:
             stmt = select(Subscription).join(User).where(
-                Subscription.ticker == ticker, User.is_authorized == True)
+                Subscription.ticker == ticker, User.is_authorized.is_(True))
             result = await session.execute(stmt)
             orm_results = result.scalars().all()
             subscriptions = [SubscriptionDTO.model_validate(
