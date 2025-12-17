@@ -32,8 +32,6 @@ async def collect_stock_datas():
     STOCK_NEWS_BATCH_SIZE = int(os.getenv('STOCK_NEWS_BATCH_SIZE', '3'))
     # 2 seconds between batches
     BATCH_DELAY_SECONDS = float(os.getenv('BATCH_DELAY_SECONDS', '2.0'))
-    # 0.5 seconds between tickers
-    TICKER_DELAY_SECONDS = float(os.getenv('TICKER_DELAY_SECONDS', '0.5'))
 
     # Collect stock price data in batches
     logger.info("Starting stock price data collection...")

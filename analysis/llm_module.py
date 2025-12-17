@@ -17,7 +17,7 @@ class LLMModule:
     def _build_model(self):
         self.logger.info("Building model...")
         provider = os.getenv("LLM_PROVIDER", "ollama")
-        model = os.getenv("LLM_MODEL", "qwen_stock")
+        model = os.getenv("LLM_MODEL", "qwen3:8b")
         if provider == "ollama":
             return ChatOllama(model=model, base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
         elif provider == "openai":
