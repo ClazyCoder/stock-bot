@@ -10,7 +10,7 @@ import re
 import asyncio
 from typing import Callable
 from functools import wraps
-from datetime import datetime
+from datetime import time
 from utils.common import chunk_list
 import pytz
 
@@ -90,8 +90,8 @@ class TelegramBot:
                 return
             ticker = ticker.upper()
             if await self.user_service.add_subscription(
-                    user_id=update.effective_user.id,
-                    chat_id=update.effective_chat.id,
+                    provider_id=str(update.effective_user.id),
+                    chat_id=str(update.effective_chat.id),
                     ticker=ticker):
                 await self.add_job(ticker)
                 await update.message.reply_text("Subscription successful. The report will be sent to you daily at 9:00 AM KST.")
@@ -111,8 +111,8 @@ class TelegramBot:
                 return
             ticker = ticker.upper()
             if await self.user_service.remove_subscription(
-                    user_id=update.effective_user.id,
-                    chat_id=update.effective_chat.id,
+                    provider_id=str(update.effective_user.id),
+                    chat_id=str(update.effective_chat.id),
                     ticker=ticker):
                 await update.message.reply_text("Unsubscription successful")
             else:
@@ -163,7 +163,7 @@ class TelegramBot:
             self.logger.info(f"Job for ticker {ticker} already exists")
             return
         job_queue.run_daily(self.send_subscriptions,
-                            time=datetime.time(hour=9, minute=0, tzinfo=kst), days=range(1, 6), data=ticker, name=job_name)
+                            time=time(hour=9, minute=0, tzinfo=kst), days=range(1, 6), data=ticker, name=job_name)
         self.logger.info(f"Job for ticker {ticker} added : {job_name}")
 
     async def load_all_jobs(self):

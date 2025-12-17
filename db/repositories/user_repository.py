@@ -66,30 +66,40 @@ class UserRepository(BaseRepository):
                     f"User not found for provider: {provider} and provider_id: {provider_id}")
                 return False
 
-    async def add_subscription(self, user_id: int, chat_id: int, ticker: str) -> bool:
+    async def add_subscription(self, provider_id: str, chat_id: str, ticker: str) -> bool:
         async with self._get_session() as session:
             try:
+                user = await self.get_authorized_user(provider="telegram", provider_id=provider_id)
+                if not user:
+                    self.logger.error(
+                        f"User not found for provider: telegram and provider_id: {provider_id}")
+                    return False
                 subscription = Subscription(
-                    user_id=user_id, chat_id=chat_id, ticker=ticker)
+                    user_id=user.id, chat_id=chat_id, ticker=ticker)
                 session.add(subscription)
                 await session.commit()
                 return True
             except IntegrityError as e:
                 self.logger.warning(
-                    f"Subscription already exists (user_id: {user_id}, chat_id: {chat_id}, ticker: {ticker}): {e}")
+                    f"Subscription already exists (user_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}")
                 await session.rollback()
                 return False
             except Exception as e:
                 self.logger.error(
-                    f"Failed to add subscription (user_id: {user_id}, chat_id: {chat_id}, ticker: {ticker}): {e}")
+                    f"Failed to add subscription (user_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}")
                 await session.rollback()
                 return False
 
-    async def remove_subscription(self, user_id: int, chat_id: int, ticker: str) -> bool:
+    async def remove_subscription(self, provider_id: str, chat_id: str, ticker: str) -> bool:
         async with self._get_session() as session:
             try:
+                user = await self.get_authorized_user(provider="telegram", provider_id=provider_id)
+                if not user:
+                    self.logger.error(
+                        f"User not found for provider: telegram and provider_id: {provider_id}")
+                    return False
                 stmt = select(Subscription).where(
-                    Subscription.user_id == user_id, Subscription.chat_id == chat_id, Subscription.ticker == ticker)
+                    Subscription.user_id == user.id, Subscription.chat_id == chat_id, Subscription.ticker == ticker)
                 result = await session.execute(stmt)
                 orm_result = result.scalar_one_or_none()
                 if orm_result:
@@ -98,11 +108,11 @@ class UserRepository(BaseRepository):
                     return True
                 else:
                     self.logger.warning(
-                        f"Subscription not found (user_id: {user_id}, chat_id: {chat_id}, ticker: {ticker})")
+                        f"Subscription not found (user_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker})")
                     return False
             except Exception as e:
                 self.logger.error(
-                    f"Failed to remove subscription (user_id: {user_id}, chat_id: {chat_id}, ticker: {ticker}): {e}")
+                    f"Failed to remove subscription (user_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}")
                 await session.rollback()
                 return False
 
@@ -114,10 +124,15 @@ class UserRepository(BaseRepository):
             orm_results = result.scalars().all()
             return [SubscriptionDTO.model_validate(subscription) for subscription in orm_results]
 
-    async def get_subscriptions_with_user_id(self, user_id: int) -> List[SubscriptionDTO]:
+    async def get_subscriptions_with_user_id(self, provider_id: str) -> List[SubscriptionDTO]:
         async with self._get_session() as session:
+            user = await self.get_user(provider="telegram", provider_id=provider_id)
+            if not user:
+                self.logger.error(
+                    f"User not found for provider: telegram and provider_id: {provider_id}")
+                return []
             stmt = select(Subscription).join(User).where(
-                Subscription.user_id == user_id, User.is_authorized == True)
+                Subscription.user_id == user.id, User.is_authorized == True)
             result = await session.execute(stmt)
             orm_results = result.scalars().all()
             return [SubscriptionDTO.model_validate(subscription) for subscription in orm_results]

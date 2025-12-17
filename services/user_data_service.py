@@ -38,26 +38,26 @@ class UserDataService:
                 f"Authorized user not found for provider: {provider} and provider_id: {provider_id}")
             return None
 
-    async def add_subscription(self, user_id: int, chat_id: int, ticker: str) -> bool:
-        result = await self.user_repository.add_subscription(user_id, chat_id, ticker)
+    async def add_subscription(self, provider_id: str, chat_id: str, ticker: str) -> bool:
+        result = await self.user_repository.add_subscription(provider_id, chat_id, ticker)
         if result:
             self.logger.info(
-                f"Subscription added for user_id: {user_id}, chat_id: {chat_id}, ticker: {ticker}")
+                f"Subscription added for provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}")
             return True
         else:
             self.logger.error(
-                f"Failed to add subscription for user_id: {user_id}, chat_id: {chat_id}, ticker: {ticker}")
+                f"Failed to add subscription for provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}")
             return False
 
-    async def remove_subscription(self, user_id: int, chat_id: int, ticker: str) -> bool:
-        result = await self.user_repository.remove_subscription(user_id, chat_id, ticker)
+    async def remove_subscription(self, provider_id: str, chat_id: str, ticker: str) -> bool:
+        result = await self.user_repository.remove_subscription(provider_id, chat_id, ticker)
         if result:
             self.logger.info(
-                f"Subscription removed for user_id: {user_id}, chat_id: {chat_id}, ticker: {ticker}")
+                f"Subscription removed for provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}")
             return True
         else:
             self.logger.error(
-                f"Failed to remove subscription for user_id: {user_id}, chat_id: {chat_id}, ticker: {ticker}")
+                f"Failed to remove subscription for provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}")
             return False
 
     async def get_subscriptions_with_ticker(self, ticker: str) -> List[SubscriptionDTO]:

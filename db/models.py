@@ -54,12 +54,13 @@ class Subscription(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey(
         'users.id', ondelete='CASCADE'), nullable=False)
-    chat_id = Column(String, nullable=False)
-
+    chat_id = Column(String, nullable=False, unique=True)
     ticker = Column(String, nullable=False)
-
-    user = relationship('User', back_populates='subscriptions')
     created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('chat_id', name='uq_chat_id'),
+    )
 
 
 class StockNews(Base):
