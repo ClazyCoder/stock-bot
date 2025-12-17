@@ -15,9 +15,14 @@ from scheduler import setup_scheduler
 dotenv.load_dotenv()
 
 
-def setup_httpx_logger():
+def ensure_logs_directory():
+    """Ensure the logs directory exists. Safe to call multiple times."""
     if not os.path.exists('logs'):
         os.makedirs('logs')
+
+
+def setup_httpx_logger():
+    ensure_logs_directory()
 
     target_loggers = ["httpx", "httpcore"]
 
@@ -51,9 +56,21 @@ async def build_tools(tool_func_list: List[Callable]) -> List[BaseTool]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Ensure logs directory exists before any logging operations
+    ensure_logs_directory()
+
     logger = logging.getLogger(__name__)
     logger.info("Starting stock-bot")
     logger.info("Starting stock-bot Services...")
+
+    # Validate required environment variables
+    telegram_bot_password = os.getenv('TELEGRAM_BOT_PASSWORD', '')
+    if not telegram_bot_password or not telegram_bot_password.strip():
+        raise ValueError(
+            "TELEGRAM_BOT_PASSWORD environment variable must be set to a non-empty value. "
+            "This is required for bot authentication security."
+        )
+
     # Use singleton services (Bot and FastAPI share the same instances)
     user_service = get_user_data_service()
     stock_service = get_stock_service()
@@ -79,6 +96,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(v1.router, prefix="/api")
 
 if __name__ == "__main__":
+    ensure_logs_directory()
     setup_httpx_logger()
     logging.basicConfig(level=logging.INFO, handlers=[
         logging.StreamHandler(), logging.FileHandler('logs/stock-bot.log', encoding='utf-8')], format='%(asctime)s - %(levelname)s - %(message)s')

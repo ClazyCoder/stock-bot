@@ -2,7 +2,7 @@ from langchain_ollama import ChatOllama
 import os
 from langchain.agents import create_agent
 from langchain.tools import BaseTool
-from typing import List, Callable
+from typing import List
 import logging
 
 

@@ -1,6 +1,11 @@
 from typing import List, Generator, TypeVar
+from fastapi import HTTPException
+import logging
+import re
 
 T = TypeVar('T')
+
+logger = logging.getLogger(__name__)
 
 
 def chunk_list(lst: List[T], n: int) -> Generator[List[T], None, None]:
@@ -18,3 +23,51 @@ def chunk_list(lst: List[T], n: int) -> Generator[List[T], None, None]:
         raise ValueError(f"Chunk size 'n' must be greater than 0, got {n}")
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
+
+
+def validate_ticker(ticker: str) -> None:
+    """
+    Validates that the ticker contains only allowed characters (alphanumeric, dots, hyphens, underscores).
+    Raises HTTPException with 400 status code if validation fails.
+
+    Args:
+        ticker: The ticker symbol to validate
+
+    Raises:
+        HTTPException: If the ticker format is invalid
+    """
+    if not ticker or not isinstance(ticker, str):
+        raise HTTPException(
+            status_code=400,
+            detail="Ticker must be a non-empty string"
+        )
+    if not re.match(r'^[a-zA-Z0-9._-]+$', ticker):
+        logger.warning(f"Invalid ticker format '{ticker}' provided")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid ticker format. Ticker must contain only alphanumeric characters and common separators (., _, -)"
+        )
+
+
+def validate_query(query: str) -> None:
+    """
+    Validates that the query string is not empty or whitespace-only.
+    Raises HTTPException with 400 status code if validation fails.
+
+    Args:
+        query: The query string to validate
+
+    Raises:
+        HTTPException: If the query is empty or invalid
+    """
+    if not query or not isinstance(query, str):
+        raise HTTPException(
+            status_code=400,
+            detail="Query must be a non-empty string"
+        )
+    if not query.strip():
+        logger.warning("Empty or whitespace-only query provided")
+        raise HTTPException(
+            status_code=400,
+            detail="Query must not be empty or contain only whitespace"
+        )

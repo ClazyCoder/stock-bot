@@ -12,7 +12,7 @@ async def collect_all_stock_data():
     """
     logger = logging.getLogger(__name__)
     logger.info("=" * 80)
-    logger.info("Starting to collect stock datas")
+    logger.info("Starting to collect all stock data")
 
     stock_service = get_stock_service()
     user_service = get_user_data_service()
@@ -144,7 +144,7 @@ async def collect_all_stock_data():
 
     # Summary
     logger.info("=" * 80)
-    logger.info("Finished collecting stock datas")
+    logger.info("Finished collecting all stock data")
     logger.info(f"Summary:")
     logger.info(
         f"  - Stock Data: {stock_data_success_count} succeeded, {stock_data_failed_count} failed")

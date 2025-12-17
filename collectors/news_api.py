@@ -18,8 +18,45 @@ class NewsDataCollector(INewsProvider):
         self.embedding_model = self._build_embedding_model()
 
         # Resolve chunking configuration: prefer explicit arguments, then environment, then defaults.
-        resolved_chunk_size = chunk_size if chunk_size is not None else int(os.getenv("NEWS_CHUNK_SIZE", "1000"))
-        resolved_chunk_overlap = chunk_overlap if chunk_overlap is not None else int(os.getenv("NEWS_CHUNK_OVERLAP", "200"))
+        # Validate NEWS_CHUNK_SIZE
+        if chunk_size is not None:
+            resolved_chunk_size = chunk_size
+        else:
+            raw_chunk_size = os.getenv("NEWS_CHUNK_SIZE", "1000")
+            try:
+                resolved_chunk_size = int(raw_chunk_size)
+                if resolved_chunk_size <= 0:
+                    raise ValueError(
+                        "NEWS_CHUNK_SIZE must be a positive integer")
+            except ValueError:
+                self.logger.warning(
+                    f"Invalid NEWS_CHUNK_SIZE '{raw_chunk_size}'; defaulting to 1000."
+                )
+                resolved_chunk_size = 1000
+
+        # Validate NEWS_CHUNK_OVERLAP
+        if chunk_overlap is not None:
+            resolved_chunk_overlap = chunk_overlap
+        else:
+            raw_chunk_overlap = os.getenv("NEWS_CHUNK_OVERLAP", "200")
+            try:
+                resolved_chunk_overlap = int(raw_chunk_overlap)
+                if resolved_chunk_overlap < 0:
+                    raise ValueError(
+                        "NEWS_CHUNK_OVERLAP must be a non-negative integer")
+            except ValueError:
+                self.logger.warning(
+                    f"Invalid NEWS_CHUNK_OVERLAP '{raw_chunk_overlap}'; defaulting to 200."
+                )
+                resolved_chunk_overlap = 200
+
+        # Validate logical constraint: chunk_overlap should be less than chunk_size
+        if resolved_chunk_overlap >= resolved_chunk_size:
+            self.logger.warning(
+                f"NEWS_CHUNK_OVERLAP ({resolved_chunk_overlap}) >= NEWS_CHUNK_SIZE ({resolved_chunk_size}). "
+                f"Adjusting chunk_overlap to {resolved_chunk_size - 1}."
+            )
+            resolved_chunk_overlap = max(0, resolved_chunk_size - 1)
 
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=resolved_chunk_size,
@@ -36,9 +73,9 @@ class NewsDataCollector(INewsProvider):
             base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
             num_gpu_env = os.getenv("OLLAMA_NUM_GPU")
             num_gpu = None
-            if num_gpu_env is not None:
+            if num_gpu_env is not None and num_gpu_env.strip():
                 try:
-                    num_gpu = int(num_gpu_env)
+                    num_gpu = int(num_gpu_env.strip())
                 except ValueError:
                     self.logger.warning(
                         f"Invalid OLLAMA_NUM_GPU value '{num_gpu_env}', ignoring and using Ollama defaults"

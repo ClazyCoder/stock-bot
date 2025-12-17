@@ -13,6 +13,7 @@ from functools import wraps
 from datetime import time
 from utils.common import chunk_list
 from zoneinfo import ZoneInfo
+import textwrap
 
 kst = ZoneInfo('Asia/Seoul')
 
@@ -38,6 +39,9 @@ class TelegramBot:
         self.user_service = user_service
         self.stock_service = stock_service
         self.llm_module = llm_module
+        # Dictionary to store locks per ticker to prevent race conditions in job creation
+        self._job_locks: dict[str, asyncio.Lock] = {}
+        self._locks_lock = asyncio.Lock()  # Lock to protect the locks dictionary
         self._register_handlers()
 
     def _register_handlers(self):
@@ -84,6 +88,14 @@ class TelegramBot:
         try:
             password = "".join(context.args) if context.args else ""
             expected_password = os.getenv('TELEGRAM_BOT_PASSWORD', '')
+
+            # Security check: reject authentication if password is not configured
+            if not expected_password or not expected_password.strip():
+                self.logger.error(
+                    "Authentication attempted but TELEGRAM_BOT_PASSWORD is not configured. Rejecting all authentication attempts.")
+                await update.message.reply_text("Authentication failed - Server configuration error")
+                return
+
             self.logger.info(f"Authentication attempt by user {user_id}")
             if secrets.compare_digest(password, expected_password):
                 result = await self.user_service.register_user("telegram", user_id)
@@ -189,10 +201,11 @@ class TelegramBot:
             report = await self.llm_module.generate_report_with_ticker(ticker)
             self.logger.info(
                 f"Report generated for ticker {ticker}")
-            final_report = f"""
-            # REPORT FOR {ticker}\n\n
-            {report}
-            """
+            final_report = textwrap.dedent(f"""
+                # REPORT FOR {ticker}
+
+                {report}
+            """).strip()
             message_tasks = [(context.bot.send_message(
                 chat_id=subscription.chat_id, text=final_report), subscription)
                 for subscription in subscriptions]
@@ -218,15 +231,23 @@ class TelegramBot:
                 f"Error during sending subscriptions for ticker {ticker}: {e}", exc_info=True)
 
     async def add_job(self, ticker: str):
-        job_queue = self.application.job_queue
-        job_name = f"job_{ticker}"
-        job_exists = job_queue.get_jobs_by_name(job_name)
-        if job_exists:
-            self.logger.info(f"Job for ticker {ticker} already exists")
-            return
-        job_queue.run_daily(self.send_subscriptions,
-                            time=time(hour=9, minute=0, tzinfo=kst), days=range(1, 6), data=ticker, name=job_name)
-        self.logger.info(f"Job for ticker {ticker} added : {job_name}")
+        # Get or create a lock for this specific ticker to prevent race conditions
+        async with self._locks_lock:
+            if ticker not in self._job_locks:
+                self._job_locks[ticker] = asyncio.Lock()
+            ticker_lock = self._job_locks[ticker]
+
+        # Use ticker-specific lock to ensure atomic check-and-set operation
+        async with ticker_lock:
+            job_queue = self.application.job_queue
+            job_name = f"job_{ticker}"
+            job_exists = job_queue.get_jobs_by_name(job_name)
+            if job_exists:
+                self.logger.info(f"Job for ticker {ticker} already exists")
+                return
+            job_queue.run_daily(self.send_subscriptions,
+                                time=time(hour=9, minute=0, tzinfo=kst), days=range(1, 6), data=ticker, name=job_name)
+            self.logger.info(f"Job for ticker {ticker} added : {job_name}")
 
     async def load_all_jobs(self):
         tickers = await self.user_service.get_unique_subscriptions_tickers()

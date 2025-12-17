@@ -5,35 +5,11 @@ from schemas import StockRequest
 from schemas.stock import StockSymbol
 from services.stock_data_service import StockDataService
 from services.user_data_service import UserDataService
+from utils.common import validate_ticker, validate_query
 import logging
-import re
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=["v1"])
-
-
-def validate_ticker(ticker: str) -> None:
-    """
-    Validates that the ticker contains only allowed characters (alphanumeric, dots, hyphens, underscores).
-    Raises HTTPException with 400 status code if validation fails.
-
-    Args:
-        ticker: The ticker symbol to validate
-
-    Raises:
-        HTTPException: If the ticker format is invalid
-    """
-    if not ticker or not isinstance(ticker, str):
-        raise HTTPException(
-            status_code=400,
-            detail="Ticker must be a non-empty string"
-        )
-    if not re.match(r'^[a-zA-Z0-9._-]+$', ticker):
-        logger.warning(f"Invalid ticker format '{ticker}' provided")
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid ticker format. Ticker must contain only alphanumeric characters and common separators (., _, -)"
-        )
 
 
 @router.post("/collect")
@@ -144,7 +120,9 @@ async def collect_stock_news(stock_req: StockSymbol, stock_service: StockDataSer
             logger.warning(
                 f"Failed to collect stock news for ticker: {stock_req.ticker}")
             raise HTTPException(
-                status_code=404, detail="Failed to collect stock news")
+                status_code=500,
+                detail=f"Failed to collect stock news for ticker {stock_req.ticker}. This may be due to no news available, external API issues, or database errors."
+            )
     except HTTPException:
         raise
     except Exception as e:
@@ -157,6 +135,7 @@ async def collect_stock_news(stock_req: StockSymbol, stock_service: StockDataSer
 @router.get("/stock_news")
 async def get_stock_news(ticker: str, query: str, stock_service: StockDataService = Depends(get_stock_service)):
     validate_ticker(ticker)
+    validate_query(query)
     logger.info(f"Getting stock news for ticker: {ticker}, query: {query}")
     try:
         stock_news = await stock_service.get_stock_news(ticker, query, top_k=5, candidate_pool=20)

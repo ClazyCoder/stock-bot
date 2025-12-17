@@ -17,7 +17,6 @@ main_sectors = {
 class StockDataCollector(IStockProvider):
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        pass
 
     def get_market_leaders(self, top: int = 3):
         '''
