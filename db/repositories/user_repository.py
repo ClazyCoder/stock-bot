@@ -87,16 +87,16 @@ class UserRepository(BaseRepository):
                 session.add(subscription)
                 await session.commit()
                 self.logger.info(
-                    f"Successfully added subscription: user_id={provider_id}, chat_id={chat_id}, ticker={ticker}")
+                    f"Successfully added subscription: provider_id={provider_id}, chat_id={chat_id}, ticker={ticker}")
                 return True
             except IntegrityError as e:
                 self.logger.warning(
-                    f"Subscription already exists (user_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}")
+                    f"Subscription already exists (provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}")
                 await session.rollback()
                 return False
             except Exception as e:
                 self.logger.error(
-                    f"Failed to add subscription (user_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}", exc_info=True)
+                    f"Failed to add subscription (provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}", exc_info=True)
                 await session.rollback()
                 return False
 
@@ -127,15 +127,15 @@ class UserRepository(BaseRepository):
                     await session.commit()
                     # Log actual count that was removed (count_before may differ if concurrent requests occurred)
                     self.logger.info(
-                        f"Successfully removed {count_before} subscription(s): user_id={provider_id}, ticker={ticker}")
+                        f"Successfully removed {count_before} subscription(s): provider_id={provider_id}, ticker={ticker}")
                     return True
                 else:
                     self.logger.warning(
-                        f"Subscription not found (user_id: {provider_id}, ticker: {ticker})")
+                        f"Subscription not found (provider_id: {provider_id}, ticker: {ticker})")
                     return False
             except Exception as e:
                 self.logger.error(
-                    f"Failed to remove subscription (user_id: {provider_id}, ticker: {ticker}): {e}", exc_info=True)
+                    f"Failed to remove subscription (provider_id: {provider_id}, ticker: {ticker}): {e}", exc_info=True)
                 await session.rollback()
                 return False
 
