@@ -193,16 +193,21 @@ class TelegramBot:
             # REPORT FOR {ticker}\n\n
             {report}
             """
-            message_tasks = [context.bot.send_message(
-                chat_id=subscription.chat_id, text=final_report) for subscription in subscriptions]
+            message_tasks = [(context.bot.send_message(
+                chat_id=subscription.chat_id, text=final_report), subscription)
+                for subscription in subscriptions]
             for chunk in chunk_list(message_tasks, 20):
-                results = await asyncio.gather(*chunk, return_exceptions=True)
+                tasks_only = [task for task, _ in chunk]
+                subscriptions_chunk = [sub for _, sub in chunk]
+                results = await asyncio.gather(*tasks_only, return_exceptions=True)
                 success_count = sum(
                     1 for r in results if not isinstance(r, Exception))
                 error_count = len(results) - success_count
                 if error_count > 0:
-                    self.logger.warning(
-                        f"Failed to send {error_count} messages for ticker {ticker}")
+                    for result, subscription in zip(results, subscriptions_chunk):
+                        if isinstance(result, Exception):
+                            self.logger.warning(
+                                f"Failed to send message for ticker {ticker} to chat_id {subscription.chat_id}: {type(result).__name__}: {result}")
                 await asyncio.sleep(1)
                 self.logger.info(
                     f"Sent {success_count}/{len(chunk)} messages successfully for ticker {ticker}")
