@@ -13,13 +13,13 @@ class Base(DeclarativeBase):
 class Stock(Base):
     __tablename__ = 'stock_data'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    ticker = Column(String, index=True)
-    trade_date = Column(DateTime)
-    open = Column(Float)
-    high = Column(Float)
-    low = Column(Float)
-    close = Column(Float)
-    volume = Column(Integer)
+    ticker = Column(String, index=True, nullable=False)
+    trade_date = Column(DateTime, nullable=False)
+    open_price = Column(Float, nullable=False)
+    high_price = Column(Float, nullable=False)
+    low_price = Column(Float, nullable=False)
+    close_price = Column(Float, nullable=False)
+    volume = Column(Integer, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(),
                         onupdate=func.now())
@@ -59,6 +59,11 @@ class Subscription(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     user = relationship('User', back_populates='subscriptions')
+
+    __table_args__ = (
+        UniqueConstraint('user_id', 'chat_id', 'ticker',
+                         name='uq_user_chat_ticker'),
+    )
 
 
 class StockNews(Base):

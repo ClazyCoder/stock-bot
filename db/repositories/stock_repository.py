@@ -24,17 +24,26 @@ class StockRepository(BaseRepository):
 
         async with self._get_session() as session:
             try:
+                # Filter out any stock data with None values in required fields
                 stock_data_list = [
                     {
                         'ticker': stock.ticker,
                         'trade_date': stock.trade_date,
-                        'open': stock.open_price,
-                        'high': stock.high_price,
-                        'low': stock.low_price,
-                        'close': stock.close_price,
+                        'open_price': stock.open_price,
+                        'high_price': stock.high_price,
+                        'low_price': stock.low_price,
+                        'close_price': stock.close_price,
                         'volume': stock.volume
                     }
-                    for stock in stock_data]
+                    for stock in stock_data
+                    if stock.ticker is not None
+                    and stock.trade_date is not None
+                    and stock.open_price is not None
+                    and stock.high_price is not None
+                    and stock.low_price is not None
+                    and stock.close_price is not None
+                    and stock.volume is not None
+                ]
                 stmt = insert(Stock).values(stock_data_list).on_conflict_do_nothing(
                     index_elements=['ticker', 'trade_date'])
                 await session.execute(stmt)
@@ -62,7 +71,7 @@ class StockRepository(BaseRepository):
                 return [StockPriceResponse.model_validate(stock) for stock in orm_results]
             except Exception as e:
                 self.logger.error(f"Error fetching stock data: {e}")
-                return []
+                return None
 
     async def remove_stock_data(self, id: int) -> bool:
         """
