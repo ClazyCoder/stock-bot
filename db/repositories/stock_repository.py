@@ -1,7 +1,7 @@
 from db.repositories.base import BaseRepository
 from schemas.stock import StockPriceCreate, StockPriceResponse, StockNewsCreate, StockNewsChunkCreate, StockNewsResponse
 from db.models import Stock, StockNews, StockNewsChunk
-from typing import List
+from typing import List, Tuple
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import select, func
 
@@ -128,6 +128,56 @@ class StockRepository(BaseRepository):
                 return True
             except Exception as e:
                 self.logger.error(f"Error inserting stock news: {e}")
+                await session.rollback()
+                return False
+
+    async def insert_multiple_stock_news(self, news_list: List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]]) -> bool:
+        """
+        Insert multiple stock news and their chunks into the database.
+        Args:
+            news_list: List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]] - List of tuples containing news and chunks.
+        Returns:
+            bool: True if all stock news and chunks were inserted successfully, False otherwise.
+        """
+        if not news_list:
+            return True
+
+        async with self._get_session() as session:
+            try:
+                success_count = 0
+                for stock_news, chunks in news_list:
+                    try:
+                        stmt = insert(StockNews).values(
+                            stock_news.model_dump())\
+                            .on_conflict_do_nothing(index_elements=['url'])\
+                            .returning(StockNews.id)
+                        result = await session.execute(stmt)
+                        stock_news_id = result.scalar_one_or_none()
+                        if not stock_news_id:
+                            # News already exists, skip
+                            continue
+
+                        chunk_data_list = []
+                        for chunk in chunks:
+                            dumped = chunk.model_dump()
+                            dumped['parent_id'] = stock_news_id
+                            chunk_data_list.append(dumped)
+
+                        if chunk_data_list:
+                            await session.execute(insert(StockNewsChunk), chunk_data_list)
+
+                        success_count += 1
+                    except Exception as e:
+                        self.logger.error(
+                            f"Error inserting stock news {stock_news.url}: {e}")
+                        continue
+
+                await session.commit()
+                self.logger.info(
+                    f"Successfully inserted {success_count}/{len(news_list)} news items")
+                return success_count > 0
+            except Exception as e:
+                self.logger.error(f"Error inserting multiple stock news: {e}")
                 await session.rollback()
                 return False
 

@@ -32,31 +32,81 @@ class NewsDataCollector(INewsProvider):
         else:
             raise ValueError(f"Unsupported embedding provider: {provider}")
 
-    async def fetch_news(self, ticker: str) -> Tuple[StockNewsCreate, List[StockNewsChunkCreate]]:
+    async def fetch_news(self, ticker: Union[str, List[str]]) -> List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]]:
         """
         Get the news for one or multiple tickers.
         Args:
-            ticker: str - The ticker of the news to fetch.
+            ticker: Union[str, List[str]] - The ticker or tickers of the news to fetch.
         Returns:
-            Tuple[StockNewsCreate, List[StockNewsChunkCreate]] - The news for the given tickers.
+            List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]] - List of tuples containing news and chunks for each ticker.
         """
-        chunks = []
-        search_results = yf.Search(ticker).search()
-        loop = asyncio.get_running_loop()
-        for news in search_results.news:
-            downloaded_page = await loop.run_in_executor(
-                None, lambda: trafilatura.fetch_url(news['link']))
-            extracted_content = await loop.run_in_executor(
-                None, lambda: trafilatura.extract(downloaded_page, output_format='json', include_comments=False, with_metadata=True))
-            results = json.loads(extracted_content)
-            chunked_contents = await loop.run_in_executor(
-                None, lambda: self.text_splitter.split_text(results['text']))
-            embeddings = await self.embedding_model.aembed_documents(chunked_contents)
-            chunks.extend([StockNewsChunkCreate(
-                ticker=ticker, title=results['title'], content=content, embedding=embedding) for content, embedding in zip(chunked_contents, embeddings)])
-        full_news = StockNewsCreate(
-            ticker=ticker, title=results['title'], full_content=results['text'], published_at=results['date'], url=news['link'])
-        return full_news, chunks
+        if isinstance(ticker, str):
+            tickers_list = [ticker]
+        else:
+            tickers_list = ticker
+
+        results: List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]] = []
+
+        for ticker_symbol in tickers_list:
+            try:
+                ticker_news: List[Tuple[StockNewsCreate,
+                                        List[StockNewsChunkCreate]]] = []
+                search_results = yf.Search(ticker_symbol).search()
+                loop = asyncio.get_running_loop()
+
+                for news_item in search_results.news:
+                    try:
+                        downloaded_page = await loop.run_in_executor(
+                            None, lambda url=news_item['link']: trafilatura.fetch_url(url))
+                        if not downloaded_page:
+                            continue
+
+                        extracted_content = await loop.run_in_executor(
+                            None, lambda page=downloaded_page: trafilatura.extract(page, output_format='json', include_comments=False, with_metadata=True))
+                        if not extracted_content:
+                            continue
+
+                        results_json = json.loads(extracted_content)
+                        if not results_json.get('text'):
+                            continue
+
+                        chunked_contents = await loop.run_in_executor(
+                            None, lambda text=results_json['text']: self.text_splitter.split_text(text))
+
+                        if not chunked_contents:
+                            continue
+
+                        embeddings = await self.embedding_model.aembed_documents(chunked_contents)
+                        chunks = [StockNewsChunkCreate(
+                            ticker=ticker_symbol,
+                            title=results_json.get('title', ''),
+                            content=content,
+                            embedding=embedding
+                        ) for content, embedding in zip(chunked_contents, embeddings)]
+
+                        full_news = StockNewsCreate(
+                            ticker=ticker_symbol,
+                            title=results_json.get('title', ''),
+                            full_content=results_json.get('text', ''),
+                            published_at=results_json.get('date'),
+                            url=news_item['link']
+                        )
+
+                        ticker_news.append((full_news, chunks))
+                    except Exception as e:
+                        self.logger.error(
+                            f"Error processing news item for ticker {ticker_symbol}: {e}")
+                        continue
+
+                results.extend(ticker_news)
+                self.logger.info(
+                    f"Collected {len(ticker_news)} news items for ticker {ticker_symbol}")
+            except Exception as e:
+                self.logger.error(
+                    f"Error fetching news for ticker {ticker_symbol}: {e}")
+                continue
+
+        return results
 
     async def get_embedding(self, text: str) -> List[float]:
         """

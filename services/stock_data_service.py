@@ -60,21 +60,32 @@ class StockDataService:
             StockPriceLLMContext.model_validate(data) for data in stock_data[-count:]]
         return to_csv_string(stock_data_llm_context)
 
-    async def collect_and_save_stock_news(self, ticker: str) -> bool:
+    async def collect_and_save_stock_news(self, tickers: Union[str, List[str]]) -> bool:
         """
-        Collect and save stock news for the given ticker.
+        Collect and save stock news for the given ticker or tickers.
         Args:
-            ticker (str): The ticker of the stock to collect news for.
+            tickers (Union[str, List[str]]): The ticker or tickers of the stock to collect news for.
         Returns:
             bool: True if the stock news was collected and saved successfully, False otherwise.
         """
-        stock_news, chunks = await self.news_collector.fetch_news(ticker)
-        if stock_news and chunks:
-            result = await self.stock_repository.insert_stock_news(stock_news, chunks)
+        try:
+            news_list = await self.news_collector.fetch_news(tickers)
+            if not news_list:
+                self.logger.warning(f"No news collected for {tickers}")
+                return False
+
+            self.logger.info(
+                f"Collected {len(news_list)} news items for {tickers}")
+            result = await self.stock_repository.insert_multiple_stock_news(news_list)
             if result:
-                self.logger.info(f"Saved stock news for {ticker}")
-                return True
-        return False
+                self.logger.info(f"Saved stock news for {tickers}")
+            else:
+                self.logger.error(f"Failed to save stock news for {tickers}")
+            return result
+        except Exception as e:
+            self.logger.error(
+                f"Failed to collect stock news for {tickers}: {e}")
+            return False
 
     async def get_stock_news(self, ticker: str, query: str, top_k: int = 5, candidate_pool: int = 20) -> StockNewsResponse | None:
         """
