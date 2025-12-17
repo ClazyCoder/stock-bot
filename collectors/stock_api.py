@@ -2,7 +2,7 @@ import yfinance as yf
 import asyncio
 import pandas as pd
 from interfaces import IStockProvider
-from schemas.stock import StockPriceCreate, StockPriceResponse
+from schemas.stock import StockPriceCreate
 from typing import List, Union
 import logging
 
