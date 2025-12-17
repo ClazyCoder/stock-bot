@@ -31,6 +31,16 @@ async def get_mcp_client() -> MultiServerMCPClient:
     global _mcp_client
     if _mcp_client is None:
         logger.info("Initializing MCP client...")
+        
+        # Validate EDGAR_IDENTITY is set and not the placeholder
+        edgar_identity = os.getenv("EDGAR_IDENTITY", "")
+        if not edgar_identity or edgar_identity == "Your Name your.email@example.com":
+            raise ValueError(
+                "EDGAR_IDENTITY environment variable is not set or is using the placeholder value. "
+                "Please set EDGAR_IDENTITY to your actual name and email (e.g., 'John Doe john.doe@example.com'). "
+                "This is required by the SEC EDGAR API to identify your application."
+            )
+        
         _mcp_client = MultiServerMCPClient(
             {
                 "edgartools": {
@@ -38,7 +48,7 @@ async def get_mcp_client() -> MultiServerMCPClient:
                     "command": "python",
                     "args": ["-m", "edgar.ai"],
                     "env": {
-                        "EDGAR_IDENTITY": os.getenv("EDGAR_IDENTITY", "Your Name your.email@example.com")
+                        "EDGAR_IDENTITY": edgar_identity
                     }
                 }
             }
