@@ -162,9 +162,11 @@ class StockDataService:
                 return result
             else:
                 self.logger.warning(
-                    f"No stock news found for ticker {ticker} when generating LLM context")
+                    f"No stock news found for ticker {ticker} when generating LLM context; returning empty list.")
                 return []
         except Exception as e:
             self.logger.error(
-                f"Error getting stock news LLM context for ticker {ticker} with query {query}: {e}", exc_info=True)
+                f"Error getting stock news LLM context for ticker {ticker} with query {query}: {e}. Returning empty list.",
+                exc_info=True,
+            )
             return []
