@@ -52,7 +52,7 @@ class StockDataCollector(IStockProvider):
             tickers (Union[str, List[str]]): Single ticker or list of ticker symbols.
             period (str): Period string for yfinance. Default: "1d".
         Returns:
-            List[StockPriceCreate]
+            List[StockPriceCreate]: List of stock price data. Returns empty list if no data is found or if an error occurs.
         """
         if isinstance(tickers, str):
             tickers_list = [tickers]
