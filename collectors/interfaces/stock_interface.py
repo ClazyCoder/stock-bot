@@ -14,3 +14,4 @@ class IStockProvider(Protocol):
             List[StockPriceCreate] - The current stock price for the given tickers.
         """
         pass
+

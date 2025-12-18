@@ -3,7 +3,7 @@ from collectors.stock_api import StockDataCollector
 from collectors.news_api import NewsDataCollector
 from services.stock_data_service import StockDataService
 from sqlalchemy.ext.asyncio import AsyncSession
-from interfaces import IStockProvider, INewsProvider
+from collectors.interfaces import IStockProvider, INewsProvider
 from db.repositories.user_repository import UserRepository
 from db.repositories.stock_repository import StockRepository
 from db.connection import AsyncSessionLocal
