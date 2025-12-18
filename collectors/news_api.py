@@ -1,4 +1,4 @@
-from interfaces import INewsProvider
+from collectors.interfaces import INewsProvider
 from schemas.stock import StockNewsCreate, StockNewsChunkCreate
 from typing import List, Union
 import logging

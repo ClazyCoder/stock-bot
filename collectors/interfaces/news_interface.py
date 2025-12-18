@@ -13,3 +13,4 @@ class INewsProvider(Protocol):
             List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]] - List of tuples containing news and chunks for each ticker.
         """
         pass
+

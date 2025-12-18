@@ -1,5 +1,5 @@
 # services/stock_data_service.py
-from interfaces import IStockProvider, INewsProvider
+from collectors.interfaces import IStockProvider, INewsProvider
 from db.repositories.stock_repository import StockRepository
 import logging
 from typing import List

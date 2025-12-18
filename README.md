@@ -32,13 +32,13 @@ stock-bot/
 ├── bot/                  # 텔레그램 봇
 │   └── telegram.py
 ├── collectors/           # 데이터 수집기
+│   ├── interfaces/       # 인터페이스 정의
 │   ├── news_api.py
 │   └── stock_api.py
 ├── db/                   # 데이터베이스
 │   ├── connection.py
 │   ├── models.py
 │   └── repositories/     # 데이터 접근 계층
-├── interfaces/           # 인터페이스 정의
 ├── jobs/                 # 스케줄러 작업
 │   └── stock_collector.py
 ├── routers/              # FastAPI 라우터
