@@ -2,7 +2,7 @@ from services.user_data_service import UserDataService
 from services.stock_data_service import StockDataService
 from analysis.llm_module import LLMModule
 from telegram.ext import Application, ContextTypes, CommandHandler
-from telegram import Update
+from telegram import Update, ParseMode
 import logging
 import os
 import secrets
@@ -202,12 +202,12 @@ class TelegramBot:
             self.logger.info(
                 f"Report generated for ticker {ticker}")
             final_report = textwrap.dedent(f"""
-                # REPORT FOR {ticker}
+                **REPORT FOR {ticker.upper()}**
 
                 {report}
             """).strip()
             message_tasks = [(context.bot.send_message(
-                chat_id=subscription.chat_id, text=final_report), subscription)
+                chat_id=subscription.chat_id, text=final_report, parse_mode=ParseMode.MARKDOWN_V2), subscription)
                 for subscription in subscriptions]
             for chunk in chunk_list(message_tasks, 20):
                 tasks_only = [task for task, _ in chunk]
