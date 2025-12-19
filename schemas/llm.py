@@ -19,11 +19,13 @@ class StockPriceLLMContext(BaseModel):
                        validation_alias="low_price")
     vol: int = Field(..., alias="volume", validation_alias="volume")
 
+    # Round float to 2 decimal places for token optimization
     @field_validator('close', 'open', 'high', 'low')
     @classmethod
     def round_float(cls, v: float) -> float:
         return round(v, 2)
 
+    # Parse date to YYYY-MM-DD format for token optimization
     @field_validator('date', mode='before')
     @classmethod
     def parse_date(cls, v):
@@ -43,3 +45,13 @@ class StockNewsLLMContext(BaseModel):
     title: str = Field(..., description="Title of the news")
     content: str = Field(..., description="Content of the news")
     published_at: datetime = Field(..., description="Published at")
+
+
+class StockReport(BaseModel):
+    """
+    LLM Context for stock report. Used for optimizing the LLM context.
+    """
+    id: int = Field(..., description="ID of the stock report")
+    ticker: str = Field(..., description="Ticker of the stock")
+    report: str = Field(..., description="Report of the stock")
+    created_at: datetime = Field(..., description="Created at")
