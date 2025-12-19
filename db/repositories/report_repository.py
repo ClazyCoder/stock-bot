@@ -72,31 +72,43 @@ class ReportRepository(BaseRepository):
                     f"Error fetching stock reports for ticker {ticker}: {e}", exc_info=True)
                 return None
 
-    async def get_today_stock_report(self) -> StockReportDTO | None:
+    async def get_stock_report_with_date(self, ticker: str, date: datetime) -> StockReportDTO | None:
         """
-        Get today's stock report from the database.
+        Get stock report from the database for a specific ticker and date.
+        Args:
+            ticker: str - The ticker of the stock to get report for.
+            date: datetime - The date of the stock report to get. Only the date part is used for comparison.
         Returns:
-            StockReportDTO | None: The today's stock report if successful, None otherwise.
+            StockReportDTO | None: The stock report if successful, None otherwise.
         """
         async with self._get_session() as session:
             try:
-                today = datetime.now().date()
+                # Extract date part for comparison (ignore time component)
+                target_date = date.date() if isinstance(date, datetime) else date
+                start_of_day = datetime.combine(
+                    target_date, datetime.min.time())
+                end_of_day = datetime.combine(target_date, datetime.max.time())
+
                 self.logger.debug(
-                    f"Fetching today's stock report (date: {today})")
+                    f"Fetching stock report for ticker: {ticker}, date: {target_date}")
                 stmt = select(StockReport).where(
-                    StockReport.created_at >= today)
+                    StockReport.ticker == ticker,
+                    StockReport.created_at >= start_of_day,
+                    StockReport.created_at <= end_of_day
+                ).order_by(StockReport.created_at.desc())
                 result = await session.execute(stmt)
                 orm_result = result.scalar_one_or_none()
+
                 if orm_result:
                     stock_report = StockReportDTO.model_validate(orm_result)
                     self.logger.info(
-                        f"Fetched today's stock report for ticker: {stock_report.ticker} (created_at: {stock_report.created_at})")
+                        f"Fetched stock report for ticker: {ticker}, date: {target_date} (created_at: {stock_report.created_at})")
                     return stock_report
                 else:
                     self.logger.warning(
-                        f"No stock report found for today ({today})")
+                        f"No stock report found for ticker: {ticker}, date: {target_date}")
                     return None
             except Exception as e:
                 self.logger.error(
-                    f"Error fetching today's stock report: {e}", exc_info=True)
+                    f"Error fetching stock report for ticker {ticker}, date {date}: {e}", exc_info=True)
                 return None
