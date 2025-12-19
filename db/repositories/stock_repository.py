@@ -8,7 +8,7 @@ from sqlalchemy import select, func
 
 class StockRepository(BaseRepository):
 
-    async def insert_stock_data(self, stock_data: List[StockPriceCreate] | StockPriceCreate) -> bool:
+    async def insert_stock_data(self, stock_data: List[StockPriceCreate] | StockPriceCreate) -> int | None:
         """
         Insert one or multiple stock data entries into the database.
         Accepts a single StockPrice or a list of StockPrice (Pydantic) models.
@@ -16,7 +16,7 @@ class StockRepository(BaseRepository):
         Args:
             stock_data (List[StockPrice] | StockPrice): The stock data to insert.
         Returns:
-            bool: True if the stock data was inserted successfully, False otherwise.
+            int | None: The number of affected rows if successful, None otherwise.
         """
         # Normalize input type to list
         if not isinstance(stock_data, list):
@@ -44,18 +44,24 @@ class StockRepository(BaseRepository):
                     and stock.close_price is not None
                     and stock.volume is not None
                 ]
+                if not stock_data_list:
+                    self.logger.warning(
+                        "No valid stock data to insert after filtering")
+                    return 0
+
                 stmt = insert(Stock).values(stock_data_list).on_conflict_do_nothing(
                     index_elements=['ticker', 'trade_date'])
-                await session.execute(stmt)
+                result = await session.execute(stmt)
+                affected_rows = result.rowcount
                 await session.commit()
                 self.logger.info(
-                    f"Successfully inserted {len(stock_data_list)} stock data records")
-                return True
+                    f"Successfully inserted/updated {affected_rows} stock data record(s) (attempted {len(stock_data_list)})")
+                return affected_rows
             except Exception as e:
                 self.logger.error(
                     f"Error inserting stock data: {e}", exc_info=True)
                 await session.rollback()
-                return False
+                return None
 
     async def get_stock_data(self, ticker: str) -> List[StockPriceResponse] | None:
         """
@@ -102,14 +108,15 @@ class StockRepository(BaseRepository):
                 self.logger.warning(f"Stock data not found for id: {id}")
                 return False
 
-    async def insert_stock_news(self, stock_news: StockNewsCreate, chunks: List[StockNewsChunkCreate]) -> bool:
+    async def insert_stock_news(self, stock_news: StockNewsCreate, chunks: List[StockNewsChunkCreate]) -> int | None:
         """
         Insert stock news and chunks into the database.
         Args:
             stock_news: StockNewsCreate - The stock news to insert.
             chunks: List[StockNewsChunkCreate] - The chunks of the stock news to insert.
         Returns:
-            bool: True if the stock news and chunks were inserted successfully, False otherwise.
+            int | None: The number of affected rows (1 for news + number of chunks) if successful, None otherwise.
+                       Returns 0 if news already exists (no new rows inserted).
         """
         async with self._get_session() as session:
             try:
@@ -122,39 +129,44 @@ class StockRepository(BaseRepository):
                 if not stock_news_id:
                     self.logger.info(
                         f"Stock news already exists, skipping insert: {stock_news.url}")
-                    return True
+                    return 0
                 chunk_data_list = []
                 for chunk in chunks:
                     dumped = chunk.model_dump()
                     dumped['parent_id'] = stock_news_id
                     chunk_data_list.append(dumped)
 
+                chunk_count = 0
                 if chunk_data_list:
-                    await session.execute(insert(StockNewsChunk), chunk_data_list)
+                    chunk_result = await session.execute(insert(StockNewsChunk).values(chunk_data_list))
+                    chunk_count = chunk_result.rowcount
 
                 await session.commit()
+                total_affected = 1 + chunk_count  # 1 for news + chunks
                 self.logger.info(
-                    f"Successfully inserted stock news: {stock_news.title} (id: {stock_news_id}) with {len(chunks)} chunks")
-                return True
+                    f"Successfully inserted stock news: {stock_news.title} (id: {stock_news_id}) with {chunk_count} chunks (total {total_affected} rows)")
+                return total_affected
             except Exception as e:
                 self.logger.error(
                     f"Error inserting stock news: {e}", exc_info=True)
                 await session.rollback()
-                return False
+                return None
 
-    async def insert_multiple_stock_news(self, news_list: List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]]) -> bool:
+    async def insert_multiple_stock_news(self, news_list: List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]]) -> int | None:
         """
         Insert multiple stock news and their chunks into the database.
         Args:
             news_list: List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]] - List of tuples containing news and chunks.
         Returns:
-            bool: True if all stock news and chunks were inserted successfully, False otherwise.
+            int | None: The total number of affected rows (news + chunks) if successful, None otherwise.
+                       Returns 0 if no new rows were inserted (all news already existed).
         """
         if not news_list:
-            return True
+            return 0
 
         async with self._get_session() as session:
             try:
+                total_affected = 0
                 success_count = 0
                 for stock_news, chunks in news_list:
                     try:
@@ -174,9 +186,12 @@ class StockRepository(BaseRepository):
                             dumped['parent_id'] = stock_news_id
                             chunk_data_list.append(dumped)
 
+                        chunk_count = 0
                         if chunk_data_list:
-                            await session.execute(insert(StockNewsChunk), chunk_data_list)
+                            chunk_result = await session.execute(insert(StockNewsChunk).values(chunk_data_list))
+                            chunk_count = chunk_result.rowcount
 
+                        total_affected += 1 + chunk_count  # 1 for news + chunks
                         success_count += 1
                     except Exception as e:
                         self.logger.error(
@@ -185,12 +200,13 @@ class StockRepository(BaseRepository):
 
                 await session.commit()
                 self.logger.info(
-                    f"Successfully inserted {success_count}/{len(news_list)} news items")
-                return success_count > 0
+                    f"Successfully inserted {success_count}/{len(news_list)} news items (total {total_affected} rows affected)")
+                return total_affected
             except Exception as e:
-                self.logger.error(f"Error inserting multiple stock news: {e}")
+                self.logger.error(
+                    f"Error inserting multiple stock news: {e}", exc_info=True)
                 await session.rollback()
-                return False
+                return None
 
     async def get_stock_news(self, ticker: str, query_embedding: List[float], top_k: int = 5, candidate_pool: int = 20) -> List[StockNewsResponse] | None:
         """
@@ -203,16 +219,12 @@ class StockRepository(BaseRepository):
         """
         # Validate query_embedding dimension to match the pgvector column (e.g., 768)
         expected_dim = 768
-        if not isinstance(query_embedding, list):
-            self.logger.error(
-                f"Invalid query_embedding type for ticker {ticker}: expected list, got {type(query_embedding).__name__}"
-            )
-            raise TypeError("query_embedding must be a list of floats")
         if len(query_embedding) != expected_dim:
             self.logger.error(
                 f"Invalid query_embedding length for ticker {ticker}: expected {expected_dim}, got {len(query_embedding)}"
             )
-            raise ValueError(f"query_embedding must have length {expected_dim}")
+            raise ValueError(
+                f"query_embedding must have length {expected_dim}")
         async with self._get_session() as session:
             try:
                 distance_col = StockNewsChunk.embedding.cosine_distance(

@@ -26,12 +26,18 @@ class StockDataService:
             return False
         # Save to database
         result = await self.stock_repository.insert_stock_data(stock_data)
-        if result:
-            self.logger.info(f"Saved stock data for {ticker}")
-        else:
-            self.logger.error(f"Failed to save stock data for {ticker}")
+        if result is None:
+            self.logger.error(
+                f"Failed to save stock data for {ticker}: database error")
             return False
-        return True
+        elif result == 0:
+            self.logger.warning(
+                f"No stock data was inserted/updated for {ticker} (may already exist)")
+            return True  # Not an error, just no new data
+        else:
+            self.logger.info(
+                f"Saved stock data for {ticker}: {result} row(s) affected")
+            return True
 
     async def get_stock_data(self, ticker: str) -> List[StockPriceResponse] | None:
         """
@@ -101,14 +107,21 @@ class StockDataService:
             self.logger.info(
                 f"Collected {len(news_list)} news items for {tickers}")
             result = await self.stock_repository.insert_multiple_stock_news(news_list)
-            if result:
-                self.logger.info(f"Saved stock news for {tickers}")
+            if result is None:
+                self.logger.error(
+                    f"Failed to save stock news for {tickers}: database error")
+                return False
+            elif result == 0:
+                self.logger.warning(
+                    f"No stock news was inserted/updated for {tickers} (may already exist)")
+                return True  # Not an error, just no new data
             else:
-                self.logger.error(f"Failed to save stock news for {tickers}")
-            return result
+                self.logger.info(
+                    f"Saved stock news for {tickers}: {result} row(s) affected")
+                return True
         except Exception as e:
             self.logger.error(
-                f"Failed to collect stock news for {tickers}: {e}")
+                f"Failed to collect stock news for {tickers}: {e}", exc_info=True)
             return False
 
     async def get_stock_news(self, ticker: str, query: str, top_k: int = 5, candidate_pool: int = 20) -> StockNewsResponse | None:

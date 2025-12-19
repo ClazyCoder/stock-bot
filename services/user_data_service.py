@@ -25,14 +25,18 @@ class UserDataService:
 
     async def register_user(self, provider: str, provider_id: str) -> bool:
         result = await self.user_repository.register_user(provider, provider_id)
-        if result:
-            self.logger.info(
-                f"User registered for provider: {provider} and provider_id: {provider_id}")
-            return True
-        else:
+        if result is None:
             self.logger.error(
-                f"Failed to register user for provider: {provider} and provider_id: {provider_id}")
+                f"Failed to register user for provider: {provider} and provider_id: {provider_id}: database error")
             return False
+        elif result == 0:
+            self.logger.warning(
+                f"User already exists for provider: {provider} and provider_id: {provider_id}")
+            return True  # User already exists is not an error
+        else:
+            self.logger.info(
+                f"User registered for provider: {provider} and provider_id: {provider_id} ({result} row affected)")
+            return True
 
     async def get_authorized_user(self, provider: str, provider_id: str) -> UserDTO | None:
         try:
