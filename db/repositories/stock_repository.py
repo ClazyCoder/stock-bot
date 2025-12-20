@@ -184,19 +184,20 @@ class StockRepository(BaseRepository):
                     return 0
 
                 # Generate embeddings for all chunks
-                chunk_contents = [chunk.content for chunk in chunks]
-                embeddings = await self.embedding_model.aembed_documents(chunk_contents)
-
-                # Prepare chunk data for insertion with generated embeddings
                 chunk_data_list = []
-                for chunk, embedding in zip(chunks, embeddings):
-                    chunk_dict = {
-                        'ticker': chunk.ticker,
-                        'content': chunk.content,
-                        'embedding': embedding,
-                        'parent_id': stock_news_id
-                    }
-                    chunk_data_list.append(chunk_dict)
+                if chunks:
+                    chunk_contents = [chunk.content for chunk in chunks]
+                    embeddings = await self.embedding_model.aembed_documents(chunk_contents)
+
+                    # Prepare chunk data for insertion with generated embeddings
+                    for chunk, embedding in zip(chunks, embeddings):
+                        chunk_dict = {
+                            'ticker': chunk.ticker,
+                            'content': chunk.content,
+                            'embedding': embedding,
+                            'parent_id': stock_news_id
+                        }
+                        chunk_data_list.append(chunk_dict)
 
                 chunk_count = 0
                 if chunk_data_list:
@@ -243,19 +244,21 @@ class StockRepository(BaseRepository):
                             continue
 
                         # Generate embeddings for all chunks
-                        chunk_contents = [chunk.content for chunk in chunks]
-                        embeddings = await self.embedding_model.aembed_documents(chunk_contents)
-
-                        # Prepare chunk data for insertion with generated embeddings
                         chunk_data_list = []
-                        for chunk, embedding in zip(chunks, embeddings):
-                            chunk_dict = {
-                                'ticker': chunk.ticker,
-                                'content': chunk.content,
-                                'embedding': embedding,
-                                'parent_id': stock_news_id
-                            }
-                            chunk_data_list.append(chunk_dict)
+                        if chunks:
+                            chunk_contents = [
+                                chunk.content for chunk in chunks]
+                            embeddings = await self.embedding_model.aembed_documents(chunk_contents)
+
+                            # Prepare chunk data for insertion with generated embeddings
+                            for chunk, embedding in zip(chunks, embeddings):
+                                chunk_dict = {
+                                    'ticker': chunk.ticker,
+                                    'content': chunk.content,
+                                    'embedding': embedding,
+                                    'parent_id': stock_news_id
+                                }
+                                chunk_data_list.append(chunk_dict)
 
                         chunk_count = 0
                         if chunk_data_list:
