@@ -192,7 +192,6 @@ class StockRepository(BaseRepository):
                 for chunk, embedding in zip(chunks, embeddings):
                     chunk_dict = {
                         'ticker': chunk.ticker,
-                        'title': chunk.title,
                         'content': chunk.content,
                         'embedding': embedding,
                         'parent_id': stock_news_id
@@ -252,7 +251,6 @@ class StockRepository(BaseRepository):
                         for chunk, embedding in zip(chunks, embeddings):
                             chunk_dict = {
                                 'ticker': chunk.ticker,
-                                'title': chunk.title,
                                 'content': chunk.content,
                                 'embedding': embedding,
                                 'parent_id': stock_news_id
