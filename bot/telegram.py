@@ -1,7 +1,5 @@
 from services.user_data_service import UserDataService
-from services.stock_data_service import StockDataService
 from services.llm_service import LLMService
-from analysis.llm_module import LLMModule
 from telegram.ext import Application, ContextTypes, CommandHandler
 from telegram import Update
 import logging
