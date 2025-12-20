@@ -1,4 +1,7 @@
 # dependencies.py
+from langchain.tools import BaseTool
+from typing import List
+from analysis.llm_module import LLMModule
 from collectors.stock_api import StockDataCollector
 from collectors.news_api import NewsDataCollector
 from services.stock_data_service import StockDataService
@@ -12,12 +15,17 @@ from services.user_data_service import UserDataService
 from services.llm_service import LLMService
 from typing import Generator
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from llm_tools.stock_tools import StockTools
 import os
 import logging
 import dotenv
-dotenv.load_dotenv()
+import asyncio
 
+dotenv.load_dotenv()
 logger = logging.getLogger(__name__)
+
+
+_llm_lock = asyncio.Lock()
 
 # Singleton instances
 _stock_repository: StockRepository | None = None
@@ -28,6 +36,38 @@ _user_service: UserDataService | None = None
 _stock_service: StockDataService | None = None
 _llm_service: LLMService | None = None
 _news_collector: INewsProvider | None = None
+
+
+async def get_edgar_tools() -> List[BaseTool]:
+    # Constants
+    EDGAR_IDENTITY_PLACEHOLDER = "Your Name your.email@example.com"
+    """Return singleton EdgarTools."""
+    logger.info("Initializing MCP client...")
+    # Validate EDGAR_IDENTITY is set and not the placeholder
+    edgar_identity = os.getenv("EDGAR_IDENTITY", "")
+    if not edgar_identity or edgar_identity == EDGAR_IDENTITY_PLACEHOLDER:
+        raise EnvironmentError(
+            "EDGAR_IDENTITY environment variable is not set or is using the placeholder value. "
+            "Please set EDGAR_IDENTITY to your actual name and email (e.g., 'John Doe john.doe@example.com'). "
+            "This is required by the SEC EDGAR API to identify your application."
+        )
+
+    _mcp_client = MultiServerMCPClient(
+        {
+            "edgartools": {
+                "transport": "stdio",
+                "command": "python",
+                "args": ["-m", "edgar.ai"],
+                "env": {
+                    "EDGAR_IDENTITY": edgar_identity
+                }
+            }
+        }
+    )
+    logger.info("MCP client initialized successfully")
+    mcp_tools = await _mcp_client.get_tools()
+    logger.info(f"Found {len(mcp_tools)} mcp tools")
+    return mcp_tools
 
 
 async def get_db_session() -> Generator[AsyncSession, None, None]:
@@ -109,13 +149,22 @@ def get_report_repository() -> ReportRepository:
     return _report_repository
 
 
-def get_llm_service() -> LLMService:
+async def get_llm_service() -> LLMService:
     """Return singleton LLMService."""
     global _llm_service
-    if _llm_service is None:
-        logger.info("Initializing LLMService singleton")
-        _llm_service = LLMService(
-            stock_repository=get_stock_repository(),
-            report_repository=get_report_repository()
-        )
+    async with _llm_lock:
+        if _llm_service is None:
+            logger.info("Initializing LLMService singleton")
+            local_tools = StockTools(
+                stock_repository=get_stock_repository()).get_tools()
+            mcp_tools = await get_edgar_tools()
+            tools = local_tools + mcp_tools
+            llm_module = LLMModule(tools=tools)
+            _llm_service = LLMService(
+                llm_module=llm_module,
+                stock_repository=get_stock_repository(),
+                report_repository=get_report_repository()
+            )
+            logger.info("LLMService initialized successfully")
+            return _llm_service
     return _llm_service

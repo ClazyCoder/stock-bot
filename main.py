@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
 
     # Use singleton services (Bot and FastAPI share the same instances)
     user_service = get_user_data_service()
-    llm_service = get_llm_service()
+    llm_service = await get_llm_service()
     bots = [TelegramBot(token=os.getenv('TELEGRAM_BOT_TOKEN'),
                         user_service=user_service, llm_service=llm_service)]
     for bot in bots:
