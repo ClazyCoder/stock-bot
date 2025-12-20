@@ -3,7 +3,7 @@ from services.stock_data_service import StockDataService
 from services.llm_service import LLMService
 from analysis.llm_module import LLMModule
 from telegram.ext import Application, ContextTypes, CommandHandler
-from telegram import Update, ParseMode
+from telegram import Update
 import logging
 import os
 import secrets
@@ -207,7 +207,7 @@ class TelegramBot:
 
             bot = self.application.bot
             message_tasks = [(bot.send_message(
-                chat_id=subscription.chat_id, text=final_report, parse_mode=ParseMode.MARKDOWN_V2), subscription)
+                chat_id=subscription.chat_id, text=final_report, parse_mode="MarkdownV2"), subscription)
                 for subscription in subscriptions]
             for chunk in chunk_list(message_tasks, 20):
                 tasks_only = [task for task, _ in chunk]
