@@ -1,10 +1,11 @@
-from dependencies import get_stock_service, get_user_data_service
+from dependencies import get_stock_service, get_user_data_service, get_llm_service
+from bot.telegram import TelegramBot
 import logging
 import os
 import asyncio
 
 
-async def collect_all_stock_data():
+async def collect_all_stock_data(telegram_bot: TelegramBot):
     """
     Collect stock data and news for all subscribed tickers.
     Processes tickers in batches to respect yfinance API limits.
@@ -16,6 +17,7 @@ async def collect_all_stock_data():
 
     stock_service = get_stock_service()
     user_service = get_user_data_service()
+    llm_service = get_llm_service()
 
     # Get all subscribed tickers
     tickers = await user_service.get_unique_subscriptions_tickers()
@@ -142,6 +144,31 @@ async def collect_all_stock_data():
     logger.info(
         f"Stock news collection completed: {stock_news_success_count} succeeded, {stock_news_failed_count} failed")
 
+    # Generate reports and send subscriptions for each ticker
+    logger.info("Starting report generation and subscription sending...")
+    report_success_count = 0
+    report_failed_count = 0
+
+    for ticker in tickers:
+        try:
+            logger.info(f"Generating report for ticker {ticker}...")
+            # Generate report (will check cache and save to DB)
+            await llm_service.generate_report_with_ticker(ticker)
+            logger.info(f"Report generated for ticker {ticker}")
+
+            # Send subscriptions via Telegram bot
+            await telegram_bot.send_subscriptions(ticker)
+            report_success_count += 1
+            logger.info(
+                f"Successfully processed report and subscriptions for ticker {ticker}")
+        except Exception as e:
+            report_failed_count += 1
+            logger.error(
+                f"Error processing report/subscriptions for ticker {ticker}: {e}", exc_info=True)
+
+    logger.info(
+        f"Report generation and subscription sending completed: {report_success_count} succeeded, {report_failed_count} failed")
+
     # Summary
     logger.info("=" * 80)
     logger.info("Finished collecting all stock data")
@@ -150,5 +177,7 @@ async def collect_all_stock_data():
         f"  - Stock Data: {stock_data_success_count} succeeded, {stock_data_failed_count} failed")
     logger.info(
         f"  - Stock News: {stock_news_success_count} succeeded, {stock_news_failed_count} failed")
+    logger.info(
+        f"  - Reports & Subscriptions: {report_success_count} succeeded, {report_failed_count} failed")
     logger.info(f"  - Total tickers: {len(tickers)}")
     logger.info("=" * 80)

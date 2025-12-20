@@ -4,13 +4,16 @@ from apscheduler.triggers.cron import CronTrigger
 import asyncio
 import logging
 from jobs import collect_all_stock_data
+from bot.telegram import TelegramBot
 
 logger = logging.getLogger(__name__)
 
 
-def setup_scheduler() -> AsyncIOScheduler:
+def setup_scheduler(telegram_bot: TelegramBot) -> AsyncIOScheduler:
     """
     Setup the scheduler for the stock collector.
+    Args:
+        telegram_bot: TelegramBot - The Telegram bot instance.
     Returns:
         AsyncIOScheduler: The scheduler instance.
     """
@@ -19,7 +22,8 @@ def setup_scheduler() -> AsyncIOScheduler:
 
     # Collect stock data and news daily at 9:00 AM
     scheduler.add_job(
-        func=lambda: asyncio.create_task(collect_all_stock_data()),
+        func=lambda: asyncio.create_task(
+            collect_all_stock_data(telegram_bot)),
         trigger=CronTrigger(day_of_week='mon-fri', hour=9, minute=0),
         id='stock_collector',
         max_instances=1,

@@ -3,19 +3,64 @@ from db.repositories.stock_repository import StockRepository
 from db.repositories.report_repository import ReportRepository
 import logging
 import os
-from typing import List
+from typing import List, Callable, Optional
 from schemas.llm import StockPriceLLMContext
 from utils.formatter import to_csv_string
 from datetime import datetime
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain.tools import BaseTool
+from langchain.tools import tool
+
+# Constants
+EDGAR_IDENTITY_PLACEHOLDER = "Your Name your.email@example.com"
 
 
 class LLMService:
     def __init__(self, stock_repository: StockRepository, report_repository: ReportRepository):
         self.logger = logging.getLogger(__name__)
-        self.llm_module = LLMModule(
-            tools=[self.get_stock_data_llm_context, self.get_stock_news_llm_context])
+        self.llm_module: Optional[LLMModule] = None
         self.stock_repository = stock_repository
         self.report_repository = report_repository
+        self.logger.info("Initializing MCP client...")
+        # Validate EDGAR_IDENTITY is set and not the placeholder
+        edgar_identity = os.getenv("EDGAR_IDENTITY", "")
+        if not edgar_identity or edgar_identity == EDGAR_IDENTITY_PLACEHOLDER:
+            raise EnvironmentError(
+                "EDGAR_IDENTITY environment variable is not set or is using the placeholder value. "
+                "Please set EDGAR_IDENTITY to your actual name and email (e.g., 'John Doe john.doe@example.com'). "
+                "This is required by the SEC EDGAR API to identify your application."
+            )
+
+        self._mcp_client = MultiServerMCPClient(
+            {
+                "edgartools": {
+                    "transport": "stdio",
+                    "command": "python",
+                    "args": ["-m", "edgar.ai"],
+                    "env": {
+                        "EDGAR_IDENTITY": edgar_identity
+                    }
+                }
+            }
+        )
+        self.logger.info("MCP client initialized successfully")
+
+    async def build_tools(self, tool_func_list: List[Callable]) -> List[BaseTool]:
+        mcp_tools = await self._mcp_client.get_tools()
+        self.logger.info(f"Found {len(mcp_tools)} mcp tools")
+        tools = [tool(func) for func in tool_func_list]
+        self.logger.info(f"Built {len(tools)} local tools")
+        return tools + mcp_tools
+
+    async def _ensure_llm_module_initialized(self):
+        """LLMModule이 초기화되지 않았다면 build_tools를 사용하여 초기화합니다."""
+        if self.llm_module is None:
+            self.logger.info("Initializing LLMModule with tools...")
+            tool_func_list = [self.get_stock_data_llm_context,
+                              self.get_stock_news_llm_context]
+            tools = await self.build_tools(tool_func_list)
+            self.llm_module = LLMModule(tools=tools)
+            self.logger.info("LLMModule initialized successfully")
 
     async def generate_report_with_ticker(self, ticker: str) -> str:
         """
@@ -36,6 +81,7 @@ class LLMService:
         # Generate new report
         self.logger.info(
             f"No existing report found for {ticker} on {today}, generating new report...")
+        await self._ensure_llm_module_initialized()
         report_content = await self.llm_module.generate_report_with_ticker(ticker)
 
         # Save report to database

@@ -6,11 +6,7 @@ import os
 import dotenv
 import routers.v1 as v1
 from bot.telegram import TelegramBot
-from dependencies import get_user_data_service, get_stock_service, get_mcp_client
-from analysis.llm_module import LLMModule
-from langchain.tools import tool
-from typing import List, Callable
-from langchain.tools import BaseTool
+from dependencies import get_user_data_service, get_llm_service
 from scheduler import setup_scheduler
 dotenv.load_dotenv()
 
@@ -44,16 +40,6 @@ def setup_httpx_logger():
         logger.addHandler(file_handler)
 
 
-async def build_tools(tool_func_list: List[Callable]) -> List[BaseTool]:
-    logger = logging.getLogger(__name__)
-    mcp_client = await get_mcp_client()
-    mcp_tools = await mcp_client.get_tools()
-    logger.info(f"Found {len(mcp_tools)} mcp tools")
-    tools = [tool(func) for func in tool_func_list]
-    logger.info(f"Built {len(tools)} local tools")
-    return tools + mcp_tools
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Ensure logs directory exists before any logging operations
@@ -73,14 +59,12 @@ async def lifespan(app: FastAPI):
 
     # Use singleton services (Bot and FastAPI share the same instances)
     user_service = get_user_data_service()
-    stock_service = get_stock_service()
-    scheduler = setup_scheduler()
-    llm_module = LLMModule(
-        tools=await build_tools([stock_service.get_stock_data_llm_context, stock_service.get_stock_news_llm_context]))
+    llm_service = get_llm_service()
     bots = [TelegramBot(token=os.getenv('TELEGRAM_BOT_TOKEN'),
-                        user_service=user_service, stock_service=stock_service, llm_module=llm_module)]
+                        user_service=user_service, llm_service=llm_service)]
     for bot in bots:
         await bot.start()
+    scheduler = setup_scheduler(telegram_bot=bots[0])
     scheduler.start()
     logger.info("Scheduler started")
     yield
