@@ -47,11 +47,21 @@ class StockNewsLLMContext(BaseModel):
     published_at: datetime = Field(..., description="Published at")
 
 
-class StockReport(BaseModel):
+class StockReportCreate(BaseModel):
     """
-    LLM Context for stock report. Used for optimizing the LLM context.
+    Stock Report Data for creation
     """
-    id: int = Field(..., description="ID of the stock report")
     ticker: str = Field(..., description="Ticker of the stock")
     report: str = Field(..., description="Report of the stock")
-    created_at: datetime = Field(..., description="Created at")
+    created_at: datetime = Field(
+        default_factory=datetime.now, description="Created at")
+
+
+class StockReportResponse(StockReportCreate):
+    """
+    Stock Report Data Response
+    """
+    id: int = Field(..., description="ID of the stock report")
+
+    class Config:
+        from_attributes = True

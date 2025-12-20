@@ -4,9 +4,61 @@ from db.models import Stock, StockNews, StockNewsChunk
 from typing import List, Tuple
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import select, func
+import os
+from langchain_ollama import OllamaEmbeddings
 
 
 class StockRepository(BaseRepository):
+
+    def __init__(self, session_factory):
+        super().__init__(session_factory)
+        self.embedding_model = self._build_embedding_model()
+
+    def _build_embedding_model(self):
+        """Build embedding model based on environment configuration."""
+        self.logger.info("Building embedding model...")
+        provider = os.getenv("EMBEDDING_PROVIDER", "ollama")
+        model = os.getenv("EMBEDDING_MODEL", "embeddinggemma")
+        if provider == "ollama":
+            base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+            num_gpu_env = os.getenv("OLLAMA_NUM_GPU")
+            num_gpu = None
+            if num_gpu_env is not None and num_gpu_env.strip():
+                try:
+                    num_gpu = int(num_gpu_env.strip())
+                except ValueError:
+                    self.logger.warning(
+                        f"Invalid OLLAMA_NUM_GPU value '{num_gpu_env}', ignoring and using Ollama defaults"
+                    )
+            kwargs = {"model": model, "base_url": base_url}
+            if num_gpu is not None:
+                kwargs["num_gpu"] = num_gpu
+            return OllamaEmbeddings(**kwargs)
+        elif provider == "openai":
+            raise NotImplementedError(
+                "OpenAI embedding model is not implemented")
+        else:
+            raise ValueError(f"Unsupported embedding provider: {provider}")
+
+    async def get_embedding(self, text: str) -> List[float]:
+        """
+        Get the embedding for the given text.
+        Args:
+            text (str): The text to get the embedding for.
+        Returns:
+            List[float]: The embedding for the given text.
+        """
+        self.logger.debug(
+            f"Getting embedding for text (length: {len(text)} characters)")
+        try:
+            embedding = await self.embedding_model.aembed_query(text)
+            self.logger.debug(
+                f"Successfully generated embedding (dimension: {len(embedding)})")
+            return embedding
+        except Exception as e:
+            self.logger.error(
+                f"Error generating embedding: {e}", exc_info=True)
+            raise
 
     async def insert_stock_data(self, stock_data: List[StockPriceCreate] | StockPriceCreate) -> int | None:
         """
@@ -113,7 +165,7 @@ class StockRepository(BaseRepository):
         Insert stock news and chunks into the database.
         Args:
             stock_news: StockNewsCreate - The stock news to insert.
-            chunks: List[StockNewsChunkCreate] - The chunks of the stock news to insert.
+            chunks: List[StockNewsChunkCreate] - The chunks of the stock news to insert (embedding will be generated).
         Returns:
             int | None: The number of affected rows (1 for news + number of chunks) if successful, None otherwise.
                        Returns 0 if news already exists (no new rows inserted).
@@ -130,11 +182,22 @@ class StockRepository(BaseRepository):
                     self.logger.info(
                         f"Stock news already exists, skipping insert: {stock_news.url}")
                     return 0
+
+                # Generate embeddings for all chunks
+                chunk_contents = [chunk.content for chunk in chunks]
+                embeddings = await self.embedding_model.aembed_documents(chunk_contents)
+
+                # Prepare chunk data for insertion with generated embeddings
                 chunk_data_list = []
-                for chunk in chunks:
-                    dumped = chunk.model_dump()
-                    dumped['parent_id'] = stock_news_id
-                    chunk_data_list.append(dumped)
+                for chunk, embedding in zip(chunks, embeddings):
+                    chunk_dict = {
+                        'ticker': chunk.ticker,
+                        'title': chunk.title,
+                        'content': chunk.content,
+                        'embedding': embedding,
+                        'parent_id': stock_news_id
+                    }
+                    chunk_data_list.append(chunk_dict)
 
                 chunk_count = 0
                 if chunk_data_list:
@@ -156,7 +219,7 @@ class StockRepository(BaseRepository):
         """
         Insert multiple stock news and their chunks into the database.
         Args:
-            news_list: List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]] - List of tuples containing news and chunks.
+            news_list: List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]] - List of tuples containing news and chunks (embedding will be generated).
         Returns:
             int | None: The total number of affected rows (news + chunks) if successful, None otherwise.
                        Returns 0 if no new rows were inserted (all news already existed).
@@ -180,11 +243,21 @@ class StockRepository(BaseRepository):
                             # News already exists, skip
                             continue
 
+                        # Generate embeddings for all chunks
+                        chunk_contents = [chunk.content for chunk in chunks]
+                        embeddings = await self.embedding_model.aembed_documents(chunk_contents)
+
+                        # Prepare chunk data for insertion with generated embeddings
                         chunk_data_list = []
-                        for chunk in chunks:
-                            dumped = chunk.model_dump()
-                            dumped['parent_id'] = stock_news_id
-                            chunk_data_list.append(dumped)
+                        for chunk, embedding in zip(chunks, embeddings):
+                            chunk_dict = {
+                                'ticker': chunk.ticker,
+                                'title': chunk.title,
+                                'content': chunk.content,
+                                'embedding': embedding,
+                                'parent_id': stock_news_id
+                            }
+                            chunk_data_list.append(chunk_dict)
 
                         chunk_count = 0
                         if chunk_data_list:
@@ -208,15 +281,19 @@ class StockRepository(BaseRepository):
                 await session.rollback()
                 return None
 
-    async def get_stock_news(self, ticker: str, query_embedding: List[float], top_k: int = 5, candidate_pool: int = 20) -> List[StockNewsResponse] | None:
+    async def get_stock_news(self, ticker: str, query: str, top_k: int = 5, candidate_pool: int = 20) -> List[StockNewsResponse] | None:
         """
         Get stock news from the database.
         Args:
             ticker: str - The ticker of the stock news to get.
-            query_embedding: List[float] - The embedding of the query to get the stock news for.
+            query: str - The query text to get the stock news for (will be converted to embedding internally).
         Returns:
-            List[StockNewsResponse] | None: The stock news for the given ticker and query embedding.
+            List[StockNewsResponse] | None: The stock news for the given ticker and query.
         """
+        # Generate embedding for the query
+        self.logger.debug(f"Generating embedding for query: {query[:50]}...")
+        query_embedding = await self.embedding_model.aembed_query(query)
+
         # Validate query_embedding dimension to match the pgvector column (e.g., 768)
         expected_dim = 768
         if len(query_embedding) != expected_dim:
@@ -249,7 +326,7 @@ class StockRepository(BaseRepository):
                 news_responses = [StockNewsResponse.model_validate(
                     news) for news, _score, _count in orm_results]
                 self.logger.info(
-                    f"Fetched {len(news_responses)} stock news items for ticker: {ticker} with query embedding")
+                    f"Fetched {len(news_responses)} stock news items for ticker: {ticker} with query: {query[:50]}...")
                 return news_responses
             except Exception as e:
                 self.logger.error(

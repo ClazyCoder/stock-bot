@@ -10,7 +10,6 @@ class INewsProvider(Protocol):
         Args:
             ticker: Union[str, List[str]] - The ticker or tickers of the news to fetch.
         Returns:
-            List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]] - List of tuples containing news and chunks for each ticker.
+            List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]] - List of tuples containing news and chunks (without embeddings) for each ticker.
         """
         pass
-

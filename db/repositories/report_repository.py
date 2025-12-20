@@ -1,17 +1,17 @@
 from db.repositories.base import BaseRepository
 from db.models import StockReport
 from sqlalchemy import select, insert, func
-from schemas.llm import StockReport as StockReportDTO
+from schemas.llm import StockReportCreate, StockReportResponse
 from typing import List
 from datetime import datetime
 
 
 class ReportRepository(BaseRepository):
-    async def insert_stock_report(self, stock_report: List[StockReportDTO]) -> int | None:
+    async def insert_stock_report(self, stock_report: List[StockReportCreate]) -> int | None:
         """
         Insert stock report into the database.
         Args:
-            stock_report: List[StockReportDTO] - The stock report to insert.
+            stock_report: List[StockReportCreate] - The stock report to insert.
         Returns:
             int | None: The number of affected rows if successful, None otherwise.
         """
@@ -42,13 +42,13 @@ class ReportRepository(BaseRepository):
                 await session.rollback()
                 return None
 
-    async def get_stock_reports(self, ticker: str) -> List[StockReportDTO] | None:
+    async def get_stock_reports(self, ticker: str) -> List[StockReportResponse] | None:
         """
         Get stock reports from the database.
         Args:
             ticker: str - The ticker of the stock to get reports for.
         Returns:
-            List[StockReportDTO] | None: The stock reports if successful, None otherwise.
+            List[StockReportResponse] | None: The stock reports if successful, None otherwise.
         """
         async with self._get_session() as session:
             try:
@@ -58,7 +58,7 @@ class ReportRepository(BaseRepository):
                                                  ticker).order_by(StockReport.created_at.desc())
                 result = await session.execute(stmt)
                 orm_results = result.scalars().all()
-                stock_reports = [StockReportDTO.model_validate(
+                stock_reports = [StockReportResponse.model_validate(
                     orm_result) for orm_result in orm_results]
                 if stock_reports:
                     self.logger.info(
@@ -72,14 +72,14 @@ class ReportRepository(BaseRepository):
                     f"Error fetching stock reports for ticker {ticker}: {e}", exc_info=True)
                 return None
 
-    async def get_stock_report_with_date(self, ticker: str, date: datetime) -> StockReportDTO | None:
+    async def get_stock_report_with_date(self, ticker: str, date: datetime) -> StockReportResponse | None:
         """
         Get stock report from the database for a specific ticker and date.
         Args:
             ticker: str - The ticker of the stock to get report for.
             date: datetime - The date of the stock report to get. Only the date part is used for comparison.
         Returns:
-            StockReportDTO | None: The stock report if successful, None otherwise.
+            StockReportResponse | None: The stock report if successful, None otherwise.
         """
         async with self._get_session() as session:
             try:
@@ -100,7 +100,8 @@ class ReportRepository(BaseRepository):
                 orm_result = result.scalar_one_or_none()
 
                 if orm_result:
-                    stock_report = StockReportDTO.model_validate(orm_result)
+                    stock_report = StockReportResponse.model_validate(
+                        orm_result)
                     self.logger.info(
                         f"Fetched stock report for ticker: {ticker}, date: {target_date} (created_at: {stock_report.created_at})")
                     return stock_report

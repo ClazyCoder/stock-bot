@@ -3,7 +3,6 @@ from schemas.stock import StockNewsCreate, StockNewsChunkCreate
 from typing import List, Union
 import logging
 import os
-from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import yfinance as yf
 import trafilatura
@@ -15,7 +14,6 @@ from typing import Tuple
 class NewsDataCollector(INewsProvider):
     def __init__(self, chunk_size: Union[int, None] = None, chunk_overlap: Union[int, None] = None):
         self.logger = logging.getLogger(__name__)
-        self.embedding_model = self._build_embedding_model()
 
         # Resolve chunking configuration: prefer explicit arguments, then environment, then defaults.
         # Validate NEWS_CHUNK_SIZE
@@ -65,38 +63,13 @@ class NewsDataCollector(INewsProvider):
         )
         self.logger.info(f"News data collector built successfully")
 
-    def _build_embedding_model(self):
-        self.logger.info("Building embedding model...")
-        provider = os.getenv("EMBEDDING_PROVIDER", "ollama")
-        model = os.getenv("EMBEDDING_MODEL", "embeddinggemma")
-        if provider == "ollama":
-            base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-            num_gpu_env = os.getenv("OLLAMA_NUM_GPU")
-            num_gpu = None
-            if num_gpu_env is not None and num_gpu_env.strip():
-                try:
-                    num_gpu = int(num_gpu_env.strip())
-                except ValueError:
-                    self.logger.warning(
-                        f"Invalid OLLAMA_NUM_GPU value '{num_gpu_env}', ignoring and using Ollama defaults"
-                    )
-            kwargs = {"model": model, "base_url": base_url}
-            if num_gpu is not None:
-                kwargs["num_gpu"] = num_gpu
-            return OllamaEmbeddings(**kwargs)
-        elif provider == "openai":
-            raise NotImplementedError(
-                "OpenAI embedding model is not implemented")
-        else:
-            raise ValueError(f"Unsupported embedding provider: {provider}")
-
     async def fetch_news(self, ticker: Union[str, List[str]]) -> List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]]:
         """
         Get the news for one or multiple tickers.
         Args:
             ticker: Union[str, List[str]] - The ticker or tickers of the news to fetch.
         Returns:
-            List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]] - List of tuples containing news and chunks for each ticker.
+            List[Tuple[StockNewsCreate, List[StockNewsChunkCreate]]] - List of tuples containing news and chunks (without embeddings) for each ticker.
         """
         if isinstance(ticker, str):
             tickers_list = [ticker]
@@ -137,13 +110,11 @@ class NewsDataCollector(INewsProvider):
                         if not chunked_contents:
                             continue
 
-                        embeddings = await self.embedding_model.aembed_documents(chunked_contents)
                         chunks = [StockNewsChunkCreate(
                             ticker=ticker_symbol,
                             title=results_json.get('title', ''),
-                            content=content,
-                            embedding=embedding
-                        ) for content, embedding in zip(chunked_contents, embeddings)]
+                            content=content
+                        ) for content in chunked_contents]
 
                         full_news = StockNewsCreate(
                             ticker=ticker_symbol,
@@ -172,23 +143,3 @@ class NewsDataCollector(INewsProvider):
         self.logger.info(
             f"News collection completed: {len(results)} total news items for {len(tickers_list)} ticker(s)")
         return results
-
-    async def get_embedding(self, text: str) -> List[float]:
-        """
-        Get the embedding for the given text.
-        Args:
-            text (str): The text to get the embedding for.
-        Returns:
-            List[float]: The embedding for the given text.
-        """
-        self.logger.debug(
-            f"Getting embedding for text (length: {len(text)} characters)")
-        try:
-            embedding = await self.embedding_model.aembed_query(text)
-            self.logger.debug(
-                f"Successfully generated embedding (dimension: {len(embedding)})")
-            return embedding
-        except Exception as e:
-            self.logger.error(
-                f"Error generating embedding: {e}", exc_info=True)
-            raise
