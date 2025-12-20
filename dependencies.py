@@ -184,5 +184,4 @@ async def get_llm_service() -> LLMService:
                 report_repository=get_report_repository()
             )
             logger.info("LLMService initialized successfully")
-            return _llm_service
-    return _llm_service
+        return _llm_service
