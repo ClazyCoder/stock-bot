@@ -1,5 +1,5 @@
 # db/db_models.py
-from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey, Boolean, Date
 from sqlalchemy.orm import DeclarativeBase, relationship
 from sqlalchemy.schema import UniqueConstraint, Index
 from sqlalchemy.sql import func
@@ -95,3 +95,17 @@ class StockNewsChunk(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(),
                         onupdate=func.now())
+
+
+class StockReport(Base):
+    __tablename__ = 'stock_reports'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ticker = Column(String, index=True, nullable=False)
+    report = Column(String, nullable=False)
+    created_at = Column(Date, server_default=func.now())
+    updated_at = Column(Date, server_default=func.now(),
+                        onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint('ticker', 'created_at', name='uq_ticker_created_at'),
+    )

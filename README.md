@@ -7,6 +7,7 @@
 - 📊 **주식 데이터 수집**: yfinance를 통한 실시간 주가 데이터 수집 및 저장
 - 📰 **뉴스 수집 및 분석**: 주식 관련 뉴스를 수집하고 벡터 임베딩을 활용한 의미 기반 검색
 - 🤖 **AI 리포트 생성**: LLM을 활용한 전문적인 주식 분석 리포트 자동 생성
+- 💾 **리포트 캐싱**: 생성된 리포트를 데이터베이스에 저장하여 중복 생성 방지 및 빠른 조회
 - 📱 **텔레그램 봇**: 텔레그램을 통한 간편한 리포트 조회 및 구독 관리
 - 🔄 **자동화된 스케줄링**: 평일 오전 9시 자동 데이터 수집 및 리포트 발송
 - 🌐 **REST API**: FastAPI 기반의 RESTful API 제공
@@ -44,10 +45,15 @@ stock-bot/
 ├── routers/              # FastAPI 라우터
 │   └── v1.py
 ├── schemas/              # Pydantic 스키마
+│   ├── llm.py            # LLM 관련 스키마 (리포트 등)
+│   ├── stock.py          # 주식 관련 스키마
+│   └── user.py           # 사용자 관련 스키마
 ├── services/             # 비즈니스 로직
+│   ├── llm_service.py    # LLM 리포트 생성 서비스
 │   ├── stock_data_service.py
 │   └── user_data_service.py
 ├── utils/                # 유틸리티 함수
+│   └── common.py         # 공통 유틸리티 (타임존, 검증 등)
 ├── main.py               # 애플리케이션 진입점
 ├── scheduler.py          # 스케줄러 설정
 └── dependencies.py       # 의존성 주입
@@ -99,6 +105,13 @@ cp .env.example .env
 - `OLLAMA_BASE_URL`: Ollama 서버 URL (LLM 사용 시)
 - `LLM_MODEL`: 사용할 LLM 모델명
 - `EMBEDDING_MODEL`: 사용할 임베딩 모델명
+- `EDGAR_IDENTITY`: SEC EDGAR API 식별자 (예: "Your Name your.email@example.com")
+
+선택적 환경 변수:
+- `BUSINESS_TIMEZONE`: 비즈니스 타임존 (기본값: `Asia/Seoul`). 리포트 생성 시 날짜 결정에 사용됩니다.
+- `STOCK_DATA_BATCH_SIZE`: 주가 데이터 배치 크기 (기본값: `5`)
+- `STOCK_NEWS_BATCH_SIZE`: 뉴스 배치 크기 (기본값: `3`)
+- `BATCH_DELAY_SECONDS`: 배치 간 지연 시간 (기본값: `2.0`)
 
 전체 환경 변수 목록은 `.env.example` 파일을 참고하세요.
 
@@ -134,7 +147,7 @@ uv run main.py
 2. `/auth <password>` 명령으로 인증합니다.
 3. `/sub <TICKER>` 명령으로 주식 구독을 추가합니다.
 4. `/report <TICKER>` 명령으로 리포트를 요청합니다.
-5. 구독한 주식에 대한 리포트는 매일 오전 9시(KST)에 자동으로 발송됩니다.
+5. 구독한 주식에 대한 리포트는 매일 오전 9시(비즈니스 타임존, 기본값: KST)에 자동으로 발송됩니다.
 
 **사용 가능한 명령어:**
 - `/auth <password>` - 봇 인증
@@ -189,11 +202,19 @@ API 문서는 서버 실행 후 `http://localhost:8000/docs`에서 확인할 수
 
 ## 스케줄러
 
-스케줄러는 평일 오전 9시(KST)에 다음 작업을 자동으로 수행합니다:
+스케줄러는 평일 오전 9시(비즈니스 타임존, 기본값: KST)에 다음 작업을 자동으로 수행합니다:
 
 1. 구독된 모든 티커의 주가 데이터 수집
 2. 구독된 모든 티커의 뉴스 수집
 3. 각 티커에 대한 리포트 생성 및 구독자에게 발송
+
+### 리포트 생성 최적화
+
+- **중복 방지**: 같은 티커에 대해 같은 날짜의 리포트가 이미 존재하면 재생성하지 않고 저장된 리포트를 반환합니다.
+- **동시성 제어**: 티커별 락을 사용하여 동시에 여러 요청이 들어와도 중복 생성되지 않습니다.
+- **타임존 인식**: 비즈니스 타임존(기본값: `Asia/Seoul`)을 기준으로 날짜를 결정하여 서버 위치와 무관하게 일관된 동작을 보장합니다.
+
+### 배치 처리 설정
 
 배치 처리 설정은 환경 변수로 조정할 수 있습니다:
 - `STOCK_DATA_BATCH_SIZE`: 주가 데이터 배치 크기 (기본값: 5)
@@ -219,9 +240,27 @@ pytest
 ### 데이터베이스 마이그레이션 생성
 
 ```bash
-alembic revision --autogenerate -m "migration message"
-alembic upgrade head
+uv run alembic revision --autogenerate -m "migration message"
+uv run alembic upgrade head
 ```
+
+## 주요 개선사항
+
+### 리포트 관리 시스템
+
+- **데이터베이스 저장**: 생성된 리포트는 `stock_reports` 테이블에 저장되어 재사용됩니다.
+- **일일 리포트 제한**: 각 티커당 하루에 하나의 리포트만 생성됩니다 (비즈니스 타임존 기준).
+- **캐시 활용**: 같은 날짜의 리포트 요청 시 데이터베이스에서 즉시 반환하여 LLM 호출 비용을 절감합니다.
+
+### 타임존 처리
+
+- 서버의 위치와 무관하게 비즈니스 타임존(기본값: `Asia/Seoul`)을 기준으로 날짜를 결정합니다.
+- `BUSINESS_TIMEZONE` 환경 변수를 통해 다른 타임존으로 변경할 수 있습니다.
+
+### 성능 최적화
+
+- 텔레그램 메시지 전송 시 배치 처리(20개씩)를 통해 API 제한을 준수합니다.
+- 티커별 락을 통한 동시성 제어로 불필요한 리포트 재생성을 방지합니다.
 
 ## 주의사항
 

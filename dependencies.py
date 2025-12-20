@@ -1,4 +1,7 @@
 # dependencies.py
+from langchain.tools import BaseTool
+from typing import List
+from analysis.llm_module import LLMModule
 from collectors.stock_api import StockDataCollector
 from collectors.news_api import NewsDataCollector
 from services.stock_data_service import StockDataService
@@ -6,35 +9,58 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from collectors.interfaces import IStockProvider, INewsProvider
 from db.repositories.user_repository import UserRepository
 from db.repositories.stock_repository import StockRepository
+from db.repositories.report_repository import ReportRepository
 from db.connection import AsyncSessionLocal
 from services.user_data_service import UserDataService
+from services.llm_service import LLMService
 from typing import Generator
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from llm_tools.stock_tools import StockTools
 import os
 import logging
 import dotenv
-dotenv.load_dotenv()
+import asyncio
 
+dotenv.load_dotenv()
 logger = logging.getLogger(__name__)
 
-# Constants
-EDGAR_IDENTITY_PLACEHOLDER = "Your Name your.email@example.com"
+
+_llm_lock = asyncio.Lock()
+_mcp_lock = asyncio.Lock()
 
 # Singleton instances
 _stock_repository: StockRepository | None = None
 _user_repository: UserRepository | None = None
+_report_repository: ReportRepository | None = None
 _stock_data_collector: IStockProvider | None = None
 _user_service: UserDataService | None = None
 _stock_service: StockDataService | None = None
-_mcp_client: MultiServerMCPClient | None = None
+_llm_service: LLMService | None = None
 _news_collector: INewsProvider | None = None
+_mcp_client: MultiServerMCPClient | None = None
+_mcp_tools: List[BaseTool] | None = None
 
 
-async def get_mcp_client() -> MultiServerMCPClient:
-    global _mcp_client
-    if _mcp_client is None:
-        logger.info("Initializing MCP client...")
-        
+async def get_edgar_tools() -> List[BaseTool]:
+    """
+    Return singleton EdgarTools.
+    Caches the MCP client and tools to avoid recreating connections on every call.
+    """
+    global _mcp_client, _mcp_tools
+
+    # Return cached tools if available
+    if _mcp_tools is not None:
+        return _mcp_tools
+
+    async with _mcp_lock:
+        # Double-check after acquiring lock
+        if _mcp_tools is not None:
+            return _mcp_tools
+
+        # Constants
+        EDGAR_IDENTITY_PLACEHOLDER = "Your Name your.email@example.com"
+        logger.info("Initializing MCP client singleton...")
+
         # Validate EDGAR_IDENTITY is set and not the placeholder
         edgar_identity = os.getenv("EDGAR_IDENTITY", "")
         if not edgar_identity or edgar_identity == EDGAR_IDENTITY_PLACEHOLDER:
@@ -43,7 +69,7 @@ async def get_mcp_client() -> MultiServerMCPClient:
                 "Please set EDGAR_IDENTITY to your actual name and email (e.g., 'John Doe john.doe@example.com'). "
                 "This is required by the SEC EDGAR API to identify your application."
             )
-        
+
         _mcp_client = MultiServerMCPClient(
             {
                 "edgartools": {
@@ -57,7 +83,9 @@ async def get_mcp_client() -> MultiServerMCPClient:
             }
         )
         logger.info("MCP client initialized successfully")
-    return _mcp_client
+        _mcp_tools = await _mcp_client.get_tools()
+        logger.info(f"Found {len(_mcp_tools)} mcp tools")
+        return _mcp_tools
 
 
 async def get_db_session() -> Generator[AsyncSession, None, None]:
@@ -127,3 +155,33 @@ def get_user_data_service() -> UserDataService:
         logger.info("Initializing UserDataService singleton")
         _user_service = UserDataService(user_repository=get_user_repository())
     return _user_service
+
+
+def get_report_repository() -> ReportRepository:
+    """Return singleton ReportRepository (creates session in each method using SessionFactory)."""
+    global _report_repository
+    if _report_repository is None:
+        logger.info("Initializing ReportRepository singleton")
+        _report_repository = ReportRepository(
+            session_factory=AsyncSessionLocal)
+    return _report_repository
+
+
+async def get_llm_service() -> LLMService:
+    """Return singleton LLMService."""
+    global _llm_service
+    async with _llm_lock:
+        if _llm_service is None:
+            logger.info("Initializing LLMService singleton")
+            local_tools = StockTools(
+                stock_repository=get_stock_repository()).get_tools()
+            mcp_tools = await get_edgar_tools()
+            tools = local_tools + mcp_tools
+            llm_module = LLMModule(tools=tools)
+            _llm_service = LLMService(
+                llm_module=llm_module,
+                stock_repository=get_stock_repository(),
+                report_repository=get_report_repository()
+            )
+            logger.info("LLMService initialized successfully")
+        return _llm_service

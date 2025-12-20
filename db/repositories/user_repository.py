@@ -24,21 +24,36 @@ class UserRepository(BaseRepository):
                     f"User not found for provider: {provider} and provider_id: {provider_id}")
                 return None
 
-    async def register_user(self, provider: str, provider_id: str):
+    async def register_user(self, provider: str, provider_id: str) -> int | None:
+        """
+        Register a new user in the database.
+        Args:
+            provider: str - The provider name (e.g., 'telegram').
+            provider_id: str - The provider-specific user ID.
+        Returns:
+            int | None: The number of affected rows (1 if successful, 0 if user already exists), None on error.
+        """
         async with self._get_session() as session:
             try:
                 user = User(provider=provider, provider_id=provider_id,
                             is_authorized=True)
                 session.add(user)
                 await session.commit()
+                affected_rows = 1  # One user was inserted
                 self.logger.info(
-                    f"Successfully registered user: provider={provider}, provider_id={provider_id}")
-                return True
+                    f"Successfully registered user: provider={provider}, provider_id={provider_id} ({affected_rows} row affected)")
+                return affected_rows
+            except IntegrityError as e:
+                # User already exists (unique constraint violation)
+                await session.rollback()
+                self.logger.warning(
+                    f"User already exists (provider: {provider}, provider_id: {provider_id}): {e}")
+                return 0
             except Exception as e:
                 self.logger.error(
                     f"Failed to register user (provider: {provider}, provider_id: {provider_id}): {e}", exc_info=True)
                 await session.rollback()
-                return False
+                return None
 
     async def get_authorized_user(self, provider: str, provider_id: str) -> UserDTO | None:
         async with self._get_session() as session:
