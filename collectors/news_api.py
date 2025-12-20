@@ -112,7 +112,6 @@ class NewsDataCollector(INewsProvider):
 
                         chunks = [StockNewsChunkCreate(
                             ticker=ticker_symbol,
-                            title=results_json.get('title', ''),
                             content=content
                         ) for content in chunked_contents]
 

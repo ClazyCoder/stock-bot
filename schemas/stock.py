@@ -61,8 +61,8 @@ class AnalysisReport(BaseModel):
 class StockNewsChunkCreate(StockSymbol):
     """
     Stock News Chunk Data (text only, embedding is generated in repository)
+    Note: Title is stored in the parent StockNews model, not in chunks.
     """
-    title: str = Field(..., description="Title")
     content: str = Field(..., description="Content")
 
 
