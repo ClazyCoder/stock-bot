@@ -17,7 +17,7 @@ async def collect_all_stock_data(telegram_bot: TelegramBot):
 
     stock_service = get_stock_service()
     user_service = get_user_data_service()
-    llm_service = get_llm_service()
+    llm_service = await get_llm_service()
 
     # Get all subscribed tickers
     tickers = await user_service.get_unique_subscriptions_tickers()

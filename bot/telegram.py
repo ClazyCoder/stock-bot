@@ -207,7 +207,7 @@ class TelegramBot:
 
             bot = self.application.bot
             message_tasks = [(bot.send_message(
-                chat_id=subscription.chat_id, text=final_report, parse_mode="MarkdownV2"), subscription)
+                chat_id=subscription.chat_id, text=final_report), subscription)
                 for subscription in subscriptions]
             for chunk in chunk_list(message_tasks, 20):
                 tasks_only = [task for task, _ in chunk]

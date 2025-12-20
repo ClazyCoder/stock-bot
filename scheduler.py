@@ -22,9 +22,10 @@ def setup_scheduler(telegram_bot: TelegramBot) -> AsyncIOScheduler:
 
     # Collect stock data and news daily at 9:00 AM
     scheduler.add_job(
-        func=lambda: asyncio.create_task(
-            collect_all_stock_data(telegram_bot)),
-        trigger=CronTrigger(day_of_week='mon-fri', hour=9, minute=0),
+        func=collect_all_stock_data,
+        args=[telegram_bot],
+        trigger=CronTrigger(day_of_week='mon-fri', hour=9,
+                            minute=0, timezone='Asia/Seoul'),
         id='stock_collector',
         max_instances=1,
         replace_existing=True
