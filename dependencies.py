@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 _llm_lock = asyncio.Lock()
+_mcp_lock = asyncio.Lock()
 
 # Singleton instances
 _stock_repository: StockRepository | None = None
@@ -36,38 +37,55 @@ _user_service: UserDataService | None = None
 _stock_service: StockDataService | None = None
 _llm_service: LLMService | None = None
 _news_collector: INewsProvider | None = None
+_mcp_client: MultiServerMCPClient | None = None
+_mcp_tools: List[BaseTool] | None = None
 
 
 async def get_edgar_tools() -> List[BaseTool]:
-    # Constants
-    EDGAR_IDENTITY_PLACEHOLDER = "Your Name your.email@example.com"
-    """Return singleton EdgarTools."""
-    logger.info("Initializing MCP client...")
-    # Validate EDGAR_IDENTITY is set and not the placeholder
-    edgar_identity = os.getenv("EDGAR_IDENTITY", "")
-    if not edgar_identity or edgar_identity == EDGAR_IDENTITY_PLACEHOLDER:
-        raise EnvironmentError(
-            "EDGAR_IDENTITY environment variable is not set or is using the placeholder value. "
-            "Please set EDGAR_IDENTITY to your actual name and email (e.g., 'John Doe john.doe@example.com'). "
-            "This is required by the SEC EDGAR API to identify your application."
-        )
+    """
+    Return singleton EdgarTools.
+    Caches the MCP client and tools to avoid recreating connections on every call.
+    """
+    global _mcp_client, _mcp_tools
 
-    _mcp_client = MultiServerMCPClient(
-        {
-            "edgartools": {
-                "transport": "stdio",
-                "command": "python",
-                "args": ["-m", "edgar.ai"],
-                "env": {
-                    "EDGAR_IDENTITY": edgar_identity
+    # Return cached tools if available
+    if _mcp_tools is not None:
+        return _mcp_tools
+
+    async with _mcp_lock:
+        # Double-check after acquiring lock
+        if _mcp_tools is not None:
+            return _mcp_tools
+
+        # Constants
+        EDGAR_IDENTITY_PLACEHOLDER = "Your Name your.email@example.com"
+        logger.info("Initializing MCP client singleton...")
+
+        # Validate EDGAR_IDENTITY is set and not the placeholder
+        edgar_identity = os.getenv("EDGAR_IDENTITY", "")
+        if not edgar_identity or edgar_identity == EDGAR_IDENTITY_PLACEHOLDER:
+            raise EnvironmentError(
+                "EDGAR_IDENTITY environment variable is not set or is using the placeholder value. "
+                "Please set EDGAR_IDENTITY to your actual name and email (e.g., 'John Doe john.doe@example.com'). "
+                "This is required by the SEC EDGAR API to identify your application."
+            )
+
+        _mcp_client = MultiServerMCPClient(
+            {
+                "edgartools": {
+                    "transport": "stdio",
+                    "command": "python",
+                    "args": ["-m", "edgar.ai"],
+                    "env": {
+                        "EDGAR_IDENTITY": edgar_identity
+                    }
                 }
             }
-        }
-    )
-    logger.info("MCP client initialized successfully")
-    mcp_tools = await _mcp_client.get_tools()
-    logger.info(f"Found {len(mcp_tools)} mcp tools")
-    return mcp_tools
+        )
+        logger.info("MCP client initialized successfully")
+        _mcp_tools = await _mcp_client.get_tools()
+        logger.info(f"Found {len(_mcp_tools)} mcp tools")
+        return _mcp_tools
 
 
 async def get_db_session() -> Generator[AsyncSession, None, None]:
