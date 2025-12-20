@@ -1,6 +1,7 @@
 # schemas/llm.py
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, date
+from utils.common import get_today_in_business_timezone
 
 
 class StockPriceLLMContext(BaseModel):
@@ -55,7 +56,8 @@ class StockReportCreate(BaseModel):
     ticker: str = Field(..., description="Ticker of the stock")
     report: str = Field(..., description="Report of the stock")
     created_at: date = Field(
-        default_factory=lambda: datetime.now().date(), description="Created at (date only, ensures one report per day)")
+        default_factory=get_today_in_business_timezone, 
+        description="Created at (date only, ensures one report per day in business timezone)")
     
     @field_validator('created_at', mode='before')
     @classmethod

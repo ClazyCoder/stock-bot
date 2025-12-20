@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 import asyncio
 from typing import Dict
+from utils.common import get_today_in_business_timezone
 
 
 class LLMService:
@@ -34,7 +35,8 @@ class LLMService:
         """
         self.logger.info(f"Generating report for {ticker}...")
 
-        today = datetime.now().date()
+        # Use timezone-aware date to ensure consistent behavior regardless of server location
+        today = get_today_in_business_timezone()
 
         # Get ticker-specific lock to prevent concurrent generation
         ticker_lock = await self._get_ticker_lock(ticker)
@@ -78,7 +80,8 @@ class LLMService:
             str: The stock report for the given ticker in string format.
         """
         self.logger.info(f"Getting today's stock report for {ticker}...")
-        today = datetime.now().date()
+        # Use timezone-aware date to ensure consistent behavior regardless of server location
+        today = get_today_in_business_timezone()
         report = await self.report_repository.get_stock_report_with_date(ticker, today)
         if report:
             return report.report
