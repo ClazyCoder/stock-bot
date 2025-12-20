@@ -240,8 +240,8 @@ pytest
 ### 데이터베이스 마이그레이션 생성
 
 ```bash
-alembic revision --autogenerate -m "migration message"
-alembic upgrade head
+uv alembic revision --autogenerate -m "migration message"
+uv alembic upgrade head
 ```
 
 ## 주요 개선사항
