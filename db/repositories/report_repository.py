@@ -1,6 +1,7 @@
 from db.repositories.base import BaseRepository
 from db.models import StockReport
-from sqlalchemy import select, insert, func
+from sqlalchemy import select, func
+from sqlalchemy.dialects.postgresql import insert
 from schemas.llm import StockReportCreate, StockReportResponse
 from typing import List
 from datetime import datetime
