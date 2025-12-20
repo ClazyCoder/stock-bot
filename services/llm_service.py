@@ -57,7 +57,7 @@ class LLMService:
             stock_report = StockReportCreate(
                 ticker=ticker,
                 report=report_content,
-                created_at=datetime.now()
+                created_at=today  # Use the date variable already computed above
             )
             insert_result = await self.report_repository.insert_stock_report([stock_report])
             if insert_result is None:

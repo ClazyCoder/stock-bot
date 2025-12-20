@@ -1,6 +1,6 @@
 # schemas/llm.py
 from pydantic import BaseModel, Field, field_validator
-from datetime import datetime
+from datetime import datetime, date
 
 
 class StockPriceLLMContext(BaseModel):
@@ -50,11 +50,28 @@ class StockNewsLLMContext(BaseModel):
 class StockReportCreate(BaseModel):
     """
     Stock Report Data for creation
+    Note: created_at is a date (not datetime) to ensure one report per ticker per day.
     """
     ticker: str = Field(..., description="Ticker of the stock")
     report: str = Field(..., description="Report of the stock")
-    created_at: datetime = Field(
-        default_factory=datetime.now, description="Created at")
+    created_at: date = Field(
+        default_factory=lambda: datetime.now().date(), description="Created at (date only, ensures one report per day)")
+    
+    @field_validator('created_at', mode='before')
+    @classmethod
+    def normalize_to_date(cls, v):
+        """Convert datetime to date if needed."""
+        if isinstance(v, datetime):
+            return v.date()
+        if isinstance(v, str):
+            # Try to parse as datetime first, then extract date
+            try:
+                dt = datetime.fromisoformat(v.replace('Z', '+00:00'))
+                return dt.date()
+            except ValueError:
+                # Try date format
+                return datetime.strptime(v, '%Y-%m-%d').date()
+        return v
 
 
 class StockReportResponse(StockReportCreate):

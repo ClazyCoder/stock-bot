@@ -4,7 +4,7 @@ from sqlalchemy import select, func
 from sqlalchemy.dialects.postgresql import insert
 from schemas.llm import StockReportCreate, StockReportResponse
 from typing import List
-from datetime import datetime
+from datetime import datetime, date
 
 
 class ReportRepository(BaseRepository):
@@ -73,29 +73,28 @@ class ReportRepository(BaseRepository):
                     f"Error fetching stock reports for ticker {ticker}: {e}", exc_info=True)
                 return None
 
-    async def get_stock_report_with_date(self, ticker: str, date: datetime) -> StockReportResponse | None:
+    async def get_stock_report_with_date(self, ticker: str, target_date: date | datetime) -> StockReportResponse | None:
         """
         Get stock report from the database for a specific ticker and date.
         Args:
             ticker: str - The ticker of the stock to get report for.
-            date: datetime - The date of the stock report to get. Only the date part is used for comparison.
+            target_date: date | datetime - The date of the stock report to get. 
+                        If datetime is provided, only the date part is used for comparison.
         Returns:
             StockReportResponse | None: The stock report if successful, None otherwise.
         """
         async with self._get_session() as session:
             try:
-                # Extract date part for comparison (ignore time component)
-                target_date = date.date() if isinstance(date, datetime) else date
-                start_of_day = datetime.combine(
-                    target_date, datetime.min.time())
-                end_of_day = datetime.combine(target_date, datetime.max.time())
+                # Normalize to date type (created_at is Date type in DB)
+                report_date = target_date.date() if isinstance(
+                    target_date, datetime) else target_date
 
                 self.logger.debug(
-                    f"Fetching stock report for ticker: {ticker}, date: {target_date}")
+                    f"Fetching stock report for ticker: {ticker}, date: {report_date}")
+                # Since created_at is Date type, we can directly compare with date
                 stmt = select(StockReport).where(
                     StockReport.ticker == ticker,
-                    StockReport.created_at >= start_of_day,
-                    StockReport.created_at <= end_of_day
+                    StockReport.created_at == report_date
                 ).order_by(StockReport.created_at.desc())
                 result = await session.execute(stmt)
                 orm_result = result.scalar_one_or_none()
@@ -104,13 +103,13 @@ class ReportRepository(BaseRepository):
                     stock_report = StockReportResponse.model_validate(
                         orm_result)
                     self.logger.info(
-                        f"Fetched stock report for ticker: {ticker}, date: {target_date} (created_at: {stock_report.created_at})")
+                        f"Fetched stock report for ticker: {ticker}, date: {report_date} (created_at: {stock_report.created_at})")
                     return stock_report
                 else:
                     self.logger.warning(
-                        f"No stock report found for ticker: {ticker}, date: {target_date}")
+                        f"No stock report found for ticker: {ticker}, date: {report_date}")
                     return None
             except Exception as e:
                 self.logger.error(
-                    f"Error fetching stock report for ticker {ticker}, date {date}: {e}", exc_info=True)
+                    f"Error fetching stock report for ticker {ticker}, date {target_date}: {e}", exc_info=True)
                 return None
