@@ -26,16 +26,6 @@ def get_today_in_business_timezone() -> date:
     return datetime.now(BUSINESS_TIMEZONE).date()
 
 
-def get_now_in_business_timezone() -> datetime:
-    """
-    Get current datetime in the business timezone (default: Asia/Seoul).
-
-    Returns:
-        datetime: Current datetime in the business timezone
-    """
-    return datetime.now(BUSINESS_TIMEZONE)
-
-
 def chunk_list(lst: List[T], n: int) -> Generator[List[T], None, None]:
     """
     Chunk a list into smaller lists of size n.
