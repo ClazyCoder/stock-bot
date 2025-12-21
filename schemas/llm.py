@@ -56,9 +56,9 @@ class StockReportCreate(BaseModel):
     ticker: str = Field(..., description="Ticker of the stock")
     report: str = Field(..., description="Report of the stock")
     created_at: date = Field(
-        default_factory=get_today_in_business_timezone, 
+        default_factory=get_today_in_business_timezone,
         description="Created at (date only, ensures one report per day in business timezone)")
-    
+
     @field_validator('created_at', mode='before')
     @classmethod
     def normalize_to_date(cls, v):
@@ -72,7 +72,12 @@ class StockReportCreate(BaseModel):
                 return dt.date()
             except ValueError:
                 # Try date format
-                return datetime.strptime(v, '%Y-%m-%d').date()
+                try:
+                    return datetime.strptime(v, '%Y-%m-%d').date()
+                except ValueError:
+                    raise ValueError(
+                        f"Invalid date string format: '{v}'. Expected ISO format (YYYY-MM-DDTHH:MM:SS) or date format (YYYY-MM-DD)"
+                    )
         return v
 
 
