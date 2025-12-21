@@ -70,7 +70,7 @@ class LLMService:
 
             return report_content
 
-    async def get_today_stock_report(self, ticker: str) -> str:
+    async def get_today_stock_report(self, ticker: str) -> str | None:
         """
         Get today's stock report from the database.
         Args:
