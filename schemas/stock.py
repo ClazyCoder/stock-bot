@@ -73,7 +73,8 @@ class StockNewsChunkResponse(StockNewsChunkCreate):
     create request).
     """
     id: int = Field(..., description="ID")
-    embedding: List[float] = Field(..., description="Embedding", description="Embedding vector generated from the chunk content; not supplied in create requests.")
+    embedding: List[float] = Field(
+        ..., description="Embedding vector generated from the chunk content; not supplied in create requests.")
 
     class Config:
         from_attributes = True
