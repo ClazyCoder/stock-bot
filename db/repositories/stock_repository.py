@@ -172,6 +172,30 @@ class StockRepository(BaseRepository):
         """
         async with self._get_session() as session:
             try:
+                # Generate embeddings for all chunks BEFORE inserting news
+                # This ensures we don't insert news without chunks if embedding generation fails
+                chunk_data_list = []
+                if chunks:
+                    try:
+                        chunk_contents = [chunk.content for chunk in chunks]
+                        embeddings = await self.embedding_model.aembed_documents(chunk_contents)
+
+                        # Prepare chunk data for insertion with generated embeddings
+                        # Note: parent_id will be set after news insertion
+                        for chunk, embedding in zip(chunks, embeddings):
+                            chunk_dict = {
+                                'ticker': chunk.ticker,
+                                'content': chunk.content,
+                                'embedding': embedding,
+                                'parent_id': None  # Will be set after news insertion
+                            }
+                            chunk_data_list.append(chunk_dict)
+                    except Exception as e:
+                        self.logger.error(
+                            f"Error generating embeddings for stock news chunks: {e}", exc_info=True)
+                        raise
+
+                # Insert news only after successful embedding generation
                 stmt = insert(StockNews).values(
                     stock_news.model_dump())\
                     .on_conflict_do_nothing(index_elements=['url'])\
@@ -183,21 +207,9 @@ class StockRepository(BaseRepository):
                         f"Stock news already exists, skipping insert: {stock_news.url}")
                     return 0
 
-                # Generate embeddings for all chunks
-                chunk_data_list = []
-                if chunks:
-                    chunk_contents = [chunk.content for chunk in chunks]
-                    embeddings = await self.embedding_model.aembed_documents(chunk_contents)
-
-                    # Prepare chunk data for insertion with generated embeddings
-                    for chunk, embedding in zip(chunks, embeddings):
-                        chunk_dict = {
-                            'ticker': chunk.ticker,
-                            'content': chunk.content,
-                            'embedding': embedding,
-                            'parent_id': stock_news_id
-                        }
-                        chunk_data_list.append(chunk_dict)
+                # Set parent_id for all chunks now that we have stock_news_id
+                for chunk_dict in chunk_data_list:
+                    chunk_dict['parent_id'] = stock_news_id
 
                 chunk_count = 0
                 if chunk_data_list:
@@ -233,6 +245,31 @@ class StockRepository(BaseRepository):
                 success_count = 0
                 for stock_news, chunks in news_list:
                     try:
+                        # Generate embeddings for all chunks BEFORE inserting news
+                        # This ensures we don't insert news without chunks if embedding generation fails
+                        chunk_data_list = []
+                        if chunks:
+                            try:
+                                chunk_contents = [
+                                    chunk.content for chunk in chunks]
+                                embeddings = await self.embedding_model.aembed_documents(chunk_contents)
+
+                                # Prepare chunk data for insertion with generated embeddings
+                                # Note: parent_id will be set after news insertion
+                                for chunk, embedding in zip(chunks, embeddings):
+                                    chunk_dict = {
+                                        'ticker': chunk.ticker,
+                                        'content': chunk.content,
+                                        'embedding': embedding,
+                                        'parent_id': None  # Will be set after news insertion
+                                    }
+                                    chunk_data_list.append(chunk_dict)
+                            except Exception as e:
+                                self.logger.error(
+                                    f"Error generating embeddings for stock news chunks ({stock_news.url}): {e}", exc_info=True)
+                                raise
+
+                        # Insert news only after successful embedding generation
                         stmt = insert(StockNews).values(
                             stock_news.model_dump())\
                             .on_conflict_do_nothing(index_elements=['url'])\
@@ -243,22 +280,9 @@ class StockRepository(BaseRepository):
                             # News already exists, skip
                             continue
 
-                        # Generate embeddings for all chunks
-                        chunk_data_list = []
-                        if chunks:
-                            chunk_contents = [
-                                chunk.content for chunk in chunks]
-                            embeddings = await self.embedding_model.aembed_documents(chunk_contents)
-
-                            # Prepare chunk data for insertion with generated embeddings
-                            for chunk, embedding in zip(chunks, embeddings):
-                                chunk_dict = {
-                                    'ticker': chunk.ticker,
-                                    'content': chunk.content,
-                                    'embedding': embedding,
-                                    'parent_id': stock_news_id
-                                }
-                                chunk_data_list.append(chunk_dict)
+                        # Set parent_id for all chunks now that we have stock_news_id
+                        for chunk_dict in chunk_data_list:
+                            chunk_dict['parent_id'] = stock_news_id
 
                         chunk_count = 0
                         if chunk_data_list:
@@ -269,7 +293,7 @@ class StockRepository(BaseRepository):
                         success_count += 1
                     except Exception as e:
                         self.logger.error(
-                            f"Error inserting stock news {stock_news.url}: {e}")
+                            f"Error inserting stock news {stock_news.url}: {e}", exc_info=True)
                         continue
 
                 await session.commit()
