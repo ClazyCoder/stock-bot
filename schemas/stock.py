@@ -68,10 +68,12 @@ class StockNewsChunkCreate(StockSymbol):
 
 class StockNewsChunkResponse(StockNewsChunkCreate):
     """
-    Stock News Chunk Data Response
+    Stock News Chunk Data Response including the embedding vector generated
+    from the chunk content in the repository layer (not provided in the
+    create request).
     """
     id: int = Field(..., description="ID")
-    embedding: List[float] = Field(..., description="Embedding")
+    embedding: List[float] = Field(..., description="Embedding", description="Embedding vector generated from the chunk content; not supplied in create requests.")
 
     class Config:
         from_attributes = True
