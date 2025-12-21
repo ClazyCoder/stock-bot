@@ -102,9 +102,9 @@ class StockReport(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     ticker = Column(String, index=True, nullable=False)
     report = Column(String, nullable=False)
-    created_at = Column(Date, server_default=func.now())
-    updated_at = Column(Date, server_default=func.now(),
-                        onupdate=func.now())
+    created_at = Column(Date, server_default=func.current_date())
+    updated_at = Column(Date, server_default=func.current_date(),
+                        onupdate=func.current_date())
 
     __table_args__ = (
         UniqueConstraint('ticker', 'created_at', name='uq_ticker_created_at'),
