@@ -20,13 +20,13 @@ class StockPriceLLMContext(BaseModel):
                        validation_alias="low_price")
     vol: int = Field(..., alias="volume", validation_alias="volume")
 
-    # Round float to 2 decimal places for token optimization
+    # Normalize price fields to 2 decimal places
     @field_validator('close', 'open', 'high', 'low')
     @classmethod
     def round_float(cls, v: float) -> float:
         return round(v, 2)
 
-    # Parse date to YYYY-MM-DD format for token optimization
+    # Normalize date to YYYY-MM-DD string format
     @field_validator('date', mode='before')
     @classmethod
     def parse_date(cls, v):
