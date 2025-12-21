@@ -1,6 +1,7 @@
 from analysis.llm_module import LLMModule
 from db.repositories.stock_repository import StockRepository
 from db.repositories.report_repository import ReportRepository
+from schemas.llm import StockReportCreate
 import logging
 import asyncio
 from typing import Dict
@@ -54,7 +55,6 @@ class LLMService:
             report_content = await self.llm_module.generate_report_with_ticker(ticker)
 
             # Save report to database
-            from schemas.llm import StockReportCreate
             stock_report = StockReportCreate(
                 ticker=ticker,
                 report=report_content,
