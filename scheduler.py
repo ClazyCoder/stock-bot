@@ -1,7 +1,6 @@
 # scheduler.py
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-import asyncio
 import logging
 from jobs import collect_all_stock_data
 from bot.telegram import TelegramBot
@@ -31,6 +30,7 @@ def setup_scheduler(telegram_bot: TelegramBot) -> AsyncIOScheduler:
                             minute=0, timezone=business_timezone_str),
         id='stock_collector',
         max_instances=1,
+        misfire_grace_time=None,
         replace_existing=True
     )
     logger.info(
