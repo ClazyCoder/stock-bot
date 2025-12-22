@@ -1,7 +1,6 @@
 # scheduler.py
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-import asyncio
 import logging
 from jobs import collect_all_stock_data
 from bot.telegram import TelegramBot
