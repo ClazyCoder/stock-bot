@@ -31,6 +31,7 @@ def setup_scheduler(telegram_bot: TelegramBot) -> AsyncIOScheduler:
                             minute=0, timezone=business_timezone_str),
         id='stock_collector',
         max_instances=1,
+        misfire_grace_time=None,
         replace_existing=True
     )
     logger.info(
