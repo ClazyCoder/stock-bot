@@ -23,7 +23,8 @@ def setup_scheduler(telegram_bot: TelegramBot) -> AsyncIOScheduler:
 
     # Collect stock data and news daily at 9:00 AM
     # Use BUSINESS_TIMEZONE environment variable for consistency with the rest of the codebase
-    business_timezone_str = BUSINESS_TIMEZONE.key
+    # Convert ZoneInfo to string (e.g., 'Asia/Seoul')
+    business_timezone_str = str(BUSINESS_TIMEZONE)
     scheduler.add_job(
         func=collect_all_stock_data,
         args=[telegram_bot],
