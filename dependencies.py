@@ -20,6 +20,7 @@ import os
 import logging
 import dotenv
 import asyncio
+from db.repositories.admin.admin_repository import AdminRepository
 
 dotenv.load_dotenv()
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ _llm_service: LLMService | None = None
 _news_collector: INewsProvider | None = None
 _mcp_client: MultiServerMCPClient | None = None
 _mcp_tools: List[BaseTool] | None = None
+_admin_report_repository: AdminRepository | None = None
 
 
 async def get_edgar_tools() -> List[BaseTool]:
@@ -185,3 +187,13 @@ async def get_llm_service() -> LLMService:
             )
             logger.info("LLMService initialized successfully")
         return _llm_service
+
+
+async def get_admin_report_repository() -> AdminRepository:
+    """Return singleton AdminReportRepository."""
+    global _admin_report_repository
+    if _admin_report_repository is None:
+        logger.info("Initializing AdminReportRepository singleton")
+        _admin_report_repository = AdminRepository(
+            session_factory=AsyncSessionLocal)
+    return _admin_report_repository
