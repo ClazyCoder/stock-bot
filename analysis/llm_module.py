@@ -21,7 +21,11 @@ class LLMModule:
         if provider == "ollama":
             return ChatOllama(model=model, base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
         elif provider == "groq":
-            return ChatGroq(model=model, api_key=os.getenv("GROQ_API_KEY"))
+            groq_api_key = os.getenv("GROQ_API_KEY")
+            if not groq_api_key:
+                self.logger.error("GROQ_API_KEY environment variable is not set but 'groq' provider was selected.")
+                raise ValueError("GROQ_API_KEY environment variable must be set when using the 'groq' provider.")
+            return ChatGroq(model=model, api_key=groq_api_key)
         elif provider == "openai":
             # TODO: Implement OpenAI model
             raise NotImplementedError("OpenAI model is not implemented")
