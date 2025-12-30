@@ -21,11 +21,6 @@ async def verify_admin_token(admin_token: Optional[str] = Header(None)):
     return admin_token
 
 
-@router.get("/", dependencies=[Depends(verify_admin_token)])
-async def get_admin():
-    return {"message": "Admin access granted"}
-
-
 class AdminReportRequest(BaseModel):
     query: str = Field(..., description="The query to send to the database")
 
@@ -33,3 +28,8 @@ class AdminReportRequest(BaseModel):
 @router.post("/report", dependencies=[Depends(verify_admin_token)])
 async def send_raw_query(request: AdminReportRequest, admin_report_repository: AdminRepository = Depends(get_admin_report_repository)):
     return await admin_report_repository.send_raw_query(request.query)
+
+
+@router.get("/health_check", dependencies=[Depends(verify_admin_token)])
+async def health_check():
+    return {"message": "OK"}
