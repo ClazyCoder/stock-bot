@@ -11,9 +11,9 @@ from typing import List
 class UserRepository(BaseRepository):
     # Internal methods: accept session as parameter for reuse within transactions
     async def _get_user_in_session(
-        self, 
-        session: AsyncSession, 
-        provider: str, 
+        self,
+        session: AsyncSession,
+        provider: str,
         provider_id: str
     ) -> User | None:
         """Get user within an existing session (internal method for reuse)."""
@@ -23,11 +23,11 @@ class UserRepository(BaseRepository):
         ).options(selectinload(User.subscriptions))
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
-    
+
     async def _get_authorized_user_in_session(
-        self, 
-        session: AsyncSession, 
-        provider: str, 
+        self,
+        session: AsyncSession,
+        provider: str,
         provider_id: str
     ) -> User | None:
         """Get authorized user within an existing session (internal method for reuse)."""
@@ -38,7 +38,7 @@ class UserRepository(BaseRepository):
         ).options(selectinload(User.subscriptions))
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
-    
+
     # Public methods: create their own sessions and use internal methods
     async def get_user(self, provider: str, provider_id: str) -> UserDTO | None:
         async with self._get_session() as session:
@@ -128,7 +128,7 @@ class UserRepository(BaseRepository):
                     self.logger.warning(
                         f"User not found for provider: telegram and provider_id: {provider_id}")
                     return False
-                
+
                 subscription = Subscription(
                     user_id=user_orm.id, chat_id=chat_id, ticker=ticker)
                 session.add(subscription)
