@@ -84,21 +84,16 @@ class UserRepository(BaseRepository):
                 return None
 
     async def get_authorized_user(self, provider: str, provider_id: str) -> UserDTO | None:
-        try:
-            async with self._get_session() as session:
-                orm_result = await self._get_authorized_user_in_session(session, provider, provider_id)
-                if orm_result:
-                    self.logger.info(
-                        f"Authorized user found: provider={provider}, provider_id={provider_id}")
-                    return UserDTO.model_validate(orm_result)
-                else:
-                    self.logger.warning(
-                        f"Authorized user not found for provider: {provider} and provider_id: {provider_id}")
-                    return None
-        except Exception as e:
-            self.logger.error(
-                f"Failed to get authorized user (provider: {provider}, provider_id: {provider_id}): {e}", exc_info=True)
-            return None
+        async with self._get_session() as session:
+            orm_result = await self._get_authorized_user_in_session(session, provider, provider_id)
+            if orm_result:
+                self.logger.info(
+                    f"Authorized user found: provider={provider}, provider_id={provider_id}")
+                return UserDTO.model_validate(orm_result)
+            else:
+                self.logger.warning(
+                    f"Authorized user not found for provider: {provider} and provider_id: {provider_id}")
+                return None
 
     async def remove_user(self, provider: str, provider_id: str) -> bool:
         async with self._get_session() as session:
