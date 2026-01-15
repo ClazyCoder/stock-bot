@@ -56,21 +56,26 @@ class UserRepository(BaseRepository):
                 return None
 
     async def get_authorized_user(self, provider: str, provider_id: str) -> UserDTO | None:
-        async with self._get_session() as session:
-            stmt = select(User).where(User.provider == provider,
-                                      User.provider_id == provider_id,
-                                      User.is_authorized == True
-                                      ).options(selectinload(User.subscriptions))
-            result = await session.execute(stmt)
-            orm_result = result.scalar_one_or_none()
-            if orm_result:
-                self.logger.info(
-                    f"Authorized user found: provider={provider}, provider_id={provider_id}")
-                return UserDTO.model_validate(orm_result)
-            else:
-                self.logger.warning(
-                    f"Authorized user not found for provider: {provider} and provider_id: {provider_id}")
-                return None
+        try:
+            async with self._get_session() as session:
+                stmt = select(User).where(User.provider == provider,
+                                          User.provider_id == provider_id,
+                                          User.is_authorized == True
+                                          ).options(selectinload(User.subscriptions))
+                result = await session.execute(stmt)
+                orm_result = result.scalar_one_or_none()
+                if orm_result:
+                    self.logger.info(
+                        f"Authorized user found: provider={provider}, provider_id={provider_id}")
+                    return UserDTO.model_validate(orm_result)
+                else:
+                    self.logger.warning(
+                        f"Authorized user not found for provider: {provider} and provider_id: {provider_id}")
+                    return None
+        except Exception as e:
+            self.logger.error(
+                f"Failed to get authorized user (provider: {provider}, provider_id: {provider_id}): {e}", exc_info=True)
+            return None
 
     async def remove_user(self, provider: str, provider_id: str) -> bool:
         async with self._get_session() as session:
@@ -90,13 +95,13 @@ class UserRepository(BaseRepository):
                 return False
 
     async def add_subscription(self, provider_id: str, chat_id: str, ticker: str) -> bool:
-        async with self._get_session() as session:
-            try:
-                user = await self.get_authorized_user(provider="telegram", provider_id=provider_id)
-                if not user:
-                    self.logger.warning(
-                        f"User not found for provider: telegram and provider_id: {provider_id}")
-                    return False
+        user = await self.get_authorized_user(provider="telegram", provider_id=provider_id)
+        if not user:
+            self.logger.warning(
+                f"User not found for provider: telegram and provider_id: {provider_id}")
+            return False
+        try:
+            async with self._get_session() as session:
                 subscription = Subscription(
                     user_id=user.id, chat_id=chat_id, ticker=ticker)
                 session.add(subscription)
@@ -104,16 +109,16 @@ class UserRepository(BaseRepository):
                 self.logger.info(
                     f"Successfully added subscription: provider_id={provider_id}, chat_id={chat_id}, ticker={ticker}")
                 return True
-            except IntegrityError as e:
-                self.logger.warning(
-                    f"Subscription already exists (provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}")
-                await session.rollback()
-                return False
-            except Exception as e:
-                self.logger.error(
-                    f"Failed to add subscription (provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}", exc_info=True)
-                await session.rollback()
-                return False
+        except IntegrityError as e:
+            self.logger.warning(
+                f"Subscription already exists (provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}")
+            await session.rollback()
+            return False
+        except Exception as e:
+            self.logger.error(
+                f"Failed to add subscription (provider_id: {provider_id}, chat_id: {chat_id}, ticker: {ticker}): {e}", exc_info=True)
+            await session.rollback()
+            return False
 
     async def remove_subscription(self, provider_id: str, ticker: str) -> bool:
         async with self._get_session() as session:
