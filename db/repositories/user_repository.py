@@ -34,7 +34,7 @@ class UserRepository(BaseRepository):
         stmt = select(User).where(
             User.provider == provider,
             User.provider_id == provider_id,
-            User.is_authorized == True
+            User.is_authorized
         ).options(selectinload(User.subscriptions))
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
