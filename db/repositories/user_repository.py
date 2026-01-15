@@ -203,7 +203,7 @@ class UserRepository(BaseRepository):
                     f"User not found for provider: telegram and provider_id: {provider_id}")
                 return []
             stmt = select(Subscription).join(User).where(
-                Subscription.user_id == user_orm.id, User.is_authorized == True)
+                Subscription.user_id == user_orm.id, User.is_authorized.is_(True))
             result = await session.execute(stmt)
             orm_results = result.scalars().all()
             subscriptions = [SubscriptionDTO.model_validate(
