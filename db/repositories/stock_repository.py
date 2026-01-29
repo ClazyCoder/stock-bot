@@ -44,12 +44,13 @@ class StockRepository(BaseRepository):
                     "OPENAI_API_KEY environment variable must be set when using the 'openai' provider.")
             return OpenAIEmbeddings(model=model, api_key=openai_api_key)
         elif provider == "vllm":
-            if not os.getenv("VLLM_EMBEDDING_BASE_URL"):
+            vllm_embedding_base_url = os.getenv("VLLM_EMBEDDING_BASE_URL")
+            if not vllm_embedding_base_url:
                 self.logger.error(
                     "VLLM_EMBEDDING_BASE_URL environment variable is not set but 'vllm' provider was selected.")
                 raise ValueError(
                     "VLLM_EMBEDDING_BASE_URL environment variable must be set when using the 'vllm' provider.")
-            return OpenAIEmbeddings(model=model, api_key="", base_url=os.getenv("VLLM_EMBEDDING_BASE_URL"))
+            return OpenAIEmbeddings(model=model, api_key="", base_url=vllm_embedding_base_url)
         else:
             raise ValueError(f"Unsupported embedding provider: {provider}")
 
