@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import select, func
 import os
 from langchain_ollama import OllamaEmbeddings
+from langchain_openai import OpenAIEmbeddings
 
 
 class StockRepository(BaseRepository):
@@ -35,8 +36,21 @@ class StockRepository(BaseRepository):
                 kwargs["num_gpu"] = num_gpu
             return OllamaEmbeddings(**kwargs)
         elif provider == "openai":
-            raise NotImplementedError(
-                "OpenAI embedding model is not implemented")
+            openai_api_key = os.getenv("OPENAI_API_KEY")
+            if not openai_api_key or not openai_api_key.strip():
+                self.logger.error(
+                    "OPENAI_API_KEY environment variable is not set but 'openai' provider was selected.")
+                raise ValueError(
+                    "OPENAI_API_KEY environment variable must be set when using the 'openai' provider.")
+            return OpenAIEmbeddings(model=model, api_key=openai_api_key)
+        elif provider == "vllm":
+            vllm_embedding_base_url = os.getenv("VLLM_EMBEDDING_BASE_URL")
+            if not vllm_embedding_base_url or not vllm_embedding_base_url.strip():
+                self.logger.error(
+                    "VLLM_EMBEDDING_BASE_URL environment variable is not set but 'vllm' provider was selected.")
+                raise ValueError(
+                    "VLLM_EMBEDDING_BASE_URL environment variable must be set when using the 'vllm' provider.")
+            return OpenAIEmbeddings(model=model, api_key="", base_url=vllm_embedding_base_url)
         else:
             raise ValueError(f"Unsupported embedding provider: {provider}")
 

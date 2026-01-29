@@ -3,18 +3,46 @@ from db.models import User, Subscription
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.user import UserDTO, SubscriptionDTO
 from typing import List
 
 
 class UserRepository(BaseRepository):
+    # Internal methods: accept session as parameter for reuse within transactions
+    async def _get_user_in_session(
+        self,
+        session: AsyncSession,
+        provider: str,
+        provider_id: str
+    ) -> User | None:
+        """Get user within an existing session (internal method for reuse)."""
+        stmt = select(User).where(
+            User.provider == provider,
+            User.provider_id == provider_id
+        ).options(selectinload(User.subscriptions))
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def _get_authorized_user_in_session(
+        self,
+        session: AsyncSession,
+        provider: str,
+        provider_id: str
+    ) -> User | None:
+        """Get authorized user within an existing session (internal method for reuse)."""
+        stmt = select(User).where(
+            User.provider == provider,
+            User.provider_id == provider_id,
+            User.is_authorized.is_(True)
+        ).options(selectinload(User.subscriptions))
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    # Public methods: create their own sessions and use internal methods
     async def get_user(self, provider: str, provider_id: str) -> UserDTO | None:
         async with self._get_session() as session:
-            stmt = select(User).where(User.provider == provider,
-                                      User.provider_id == provider_id).options(selectinload(User.subscriptions))
-            result = await session.execute(stmt)
-            orm_result = result.scalar_one_or_none()
-
+            orm_result = await self._get_user_in_session(session, provider, provider_id)
             if orm_result:
                 self.logger.info(
                     f"User found: provider={provider}, provider_id={provider_id}")
@@ -57,12 +85,7 @@ class UserRepository(BaseRepository):
 
     async def get_authorized_user(self, provider: str, provider_id: str) -> UserDTO | None:
         async with self._get_session() as session:
-            stmt = select(User).where(User.provider == provider,
-                                      User.provider_id == provider_id,
-                                      User.is_authorized == True
-                                      ).options(selectinload(User.subscriptions))
-            result = await session.execute(stmt)
-            orm_result = result.scalar_one_or_none()
+            orm_result = await self._get_authorized_user_in_session(session, provider, provider_id)
             if orm_result:
                 self.logger.info(
                     f"Authorized user found: provider={provider}, provider_id={provider_id}")
@@ -92,13 +115,17 @@ class UserRepository(BaseRepository):
     async def add_subscription(self, provider_id: str, chat_id: str, ticker: str) -> bool:
         async with self._get_session() as session:
             try:
-                user = await self.get_authorized_user(provider="telegram", provider_id=provider_id)
-                if not user:
+                # Query user within the same transaction to ensure consistency
+                user_orm = await self._get_authorized_user_in_session(
+                    session, "telegram", provider_id
+                )
+                if not user_orm:
                     self.logger.warning(
                         f"User not found for provider: telegram and provider_id: {provider_id}")
                     return False
+
                 subscription = Subscription(
-                    user_id=user.id, chat_id=chat_id, ticker=ticker)
+                    user_id=user_orm.id, chat_id=chat_id, ticker=ticker)
                 session.add(subscription)
                 await session.commit()
                 self.logger.info(
@@ -119,13 +146,9 @@ class UserRepository(BaseRepository):
         async with self._get_session() as session:
             try:
                 # Query user within the same transaction to ensure consistency
-                user_stmt = select(User).where(
-                    User.provider == "telegram",
-                    User.provider_id == provider_id,
-                    User.is_authorized == True
+                user_orm = await self._get_authorized_user_in_session(
+                    session, "telegram", provider_id
                 )
-                user_result = await session.execute(user_stmt)
-                user_orm = user_result.scalar_one_or_none()
                 if not user_orm:
                     self.logger.warning(
                         f"User not found for provider: telegram and provider_id: {provider_id}")
@@ -168,13 +191,14 @@ class UserRepository(BaseRepository):
 
     async def get_subscriptions_with_user_id(self, provider_id: str) -> List[SubscriptionDTO]:
         async with self._get_session() as session:
-            user = await self.get_user(provider="telegram", provider_id=provider_id)
-            if not user:
+            # Query user within the same transaction to ensure consistency
+            user_orm = await self._get_user_in_session(session, "telegram", provider_id)
+            if not user_orm:
                 self.logger.warning(
                     f"User not found for provider: telegram and provider_id: {provider_id}")
                 return []
             stmt = select(Subscription).join(User).where(
-                Subscription.user_id == user.id, User.is_authorized == True)
+                Subscription.user_id == user_orm.id, User.is_authorized.is_(True))
             result = await session.execute(stmt)
             orm_results = result.scalars().all()
             subscriptions = [SubscriptionDTO.model_validate(

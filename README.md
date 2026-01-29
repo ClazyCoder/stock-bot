@@ -6,8 +6,11 @@
 
 - 📊 **주식 데이터 수집**: yfinance를 통한 실시간 주가 데이터 수집 및 저장
 - 📰 **뉴스 수집 및 분석**: 주식 관련 뉴스를 수집하고 벡터 임베딩을 활용한 의미 기반 검색
-- 🤖 **AI 리포트 생성**: LLM을 활용한 전문적인 주식 분석 리포트 자동 생성
+- 🤖 **AI 리포트 생성**: 다양한 LLM Provider를 지원하는 전문적인 주식 분석 리포트 자동 생성
+  - 지원 Provider: Ollama (로컬), Groq, OpenAI, vLLM
+  - LangChain Agent를 활용한 동적 데이터 수집 및 분석
 - 💾 **리포트 캐싱**: 생성된 리포트를 데이터베이스에 저장하여 중복 생성 방지 및 빠른 조회
+- 🔒 **동시성 제어**: 티커별 락을 통한 중복 리포트 생성 방지
 - 📱 **텔레그램 봇**: 텔레그램을 통한 간편한 리포트 조회 및 구독 관리
 - 🔄 **자동화된 스케줄링**: 평일 오전 9시 자동 데이터 수집 및 리포트 발송
 - 🌐 **REST API**: FastAPI 기반의 RESTful API 제공
@@ -17,8 +20,13 @@
 - **언어**: Python 3.12+
 - **프레임워크**: FastAPI, python-telegram-bot
 - **데이터베이스**: PostgreSQL (pgvector 확장)
-- **LLM**: LangChain, Ollama (또는 OpenAI, Anthropic)
-- **데이터 수집**: yfinance, trafilatura
+- **LLM**: LangChain, 다양한 Provider 지원
+  - Ollama (로컬 서버)
+  - Groq (고속 추론 API)
+  - OpenAI (GPT 모델)
+  - vLLM (자체 호스팅 서버)
+- **임베딩**: Ollama, OpenAI, vLLM 지원
+- **데이터 수집**: yfinance, trafilatura, edgartools (SEC EDGAR)
 - **스케줄링**: APScheduler
 - **ORM**: SQLAlchemy (비동기)
 - **마이그레이션**: Alembic
@@ -102,18 +110,30 @@ cp .env.example .env
 - `DATABASE_URL`: PostgreSQL 연결 문자열
 - `TELEGRAM_BOT_TOKEN`: 텔레그램 봇 토큰 (@BotFather에서 발급)
 - `TELEGRAM_BOT_PASSWORD`: 봇 인증 비밀번호
-- `OLLAMA_BASE_URL`: Ollama 서버 URL (LLM 사용 시)
-- `LLM_MODEL`: 사용할 LLM 모델명
+- `LLM_PROVIDER`: LLM 제공자 (`ollama`, `groq`, `openai`, `vllm` 중 선택)
+- `LLM_MODEL`: 사용할 LLM 모델명 (Provider별로 다름)
+- `EMBEDDING_PROVIDER`: 임베딩 제공자 (`ollama`, `openai`, `vllm` 중 선택)
 - `EMBEDDING_MODEL`: 사용할 임베딩 모델명
 - `EDGAR_IDENTITY`: SEC EDGAR API 식별자 (예: "Your Name your.email@example.com")
+
+Provider별 추가 필수 환경 변수:
+- **Ollama 사용 시**: `OLLAMA_BASE_URL` (기본값: `http://localhost:11434`)
+- **Groq 사용 시**: `GROQ_API_KEY` ([Groq Console](https://console.groq.com/)에서 발급)
+- **OpenAI 사용 시**: `OPENAI_API_KEY` ([OpenAI Platform](https://platform.openai.com/api-keys)에서 발급)
+- **vLLM 사용 시**: 
+  - `VLLM_BASE_URL` (LLM용)
+  - `VLLM_EMBEDDING_BASE_URL` (임베딩용)
 
 선택적 환경 변수:
 - `BUSINESS_TIMEZONE`: 비즈니스 타임존 (기본값: `Asia/Seoul`). 리포트 생성 시 날짜 결정에 사용됩니다.
 - `STOCK_DATA_BATCH_SIZE`: 주가 데이터 배치 크기 (기본값: `5`)
 - `STOCK_NEWS_BATCH_SIZE`: 뉴스 배치 크기 (기본값: `3`)
 - `BATCH_DELAY_SECONDS`: 배치 간 지연 시간 (기본값: `2.0`)
+- `OLLAMA_NUM_GPU`: Ollama 임베딩 모델에 사용할 GPU 개수 (Ollama 기본값 사용 시 생략 가능)
+- `HOST`: 서버 호스트 주소 (기본값: `0.0.0.0`)
+- `PORT`: 서버 포트 번호 (기본값: `8000`)
 
-전체 환경 변수 목록은 `.env.example` 파일을 참고하세요.
+전체 환경 변수 목록과 상세 설명은 `.env.example` 파일을 참고하세요.
 
 ### 5. 데이터베이스 마이그레이션
 
@@ -121,14 +141,62 @@ cp .env.example .env
 alembic upgrade head
 ```
 
-### 6. Ollama 설정 (LLM 사용 시)
+### 6. LLM 및 임베딩 모델 설정
+
+선택한 Provider에 따라 모델을 설정합니다.
+
+#### Ollama 사용 시 (로컬 서버)
 
 Ollama를 설치하고 필요한 모델을 다운로드합니다.
 
 ```bash
 # Ollama 설치 (https://ollama.ai)
 ollama pull qwen3:8b          # LLM 모델
-ollama pull embeddinggemma       # 임베딩 모델
+ollama pull embeddinggemma    # 임베딩 모델
+```
+
+`.env` 파일에서 다음을 설정합니다:
+```bash
+LLM_PROVIDER=ollama
+LLM_MODEL=qwen3:8b
+OLLAMA_BASE_URL=http://localhost:11434
+EMBEDDING_PROVIDER=ollama
+EMBEDDING_MODEL=embeddinggemma
+```
+
+#### Groq 사용 시 (고속 추론 API)
+
+[Groq Console](https://console.groq.com/)에서 API 키를 발급받고 `.env` 파일에 설정합니다:
+
+```bash
+LLM_PROVIDER=groq
+LLM_MODEL=llama-3.1-70b-versatile
+GROQ_API_KEY=your_groq_api_key_here
+```
+
+#### OpenAI 사용 시
+
+[OpenAI Platform](https://platform.openai.com/api-keys)에서 API 키를 발급받고 `.env` 파일에 설정합니다:
+
+```bash
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o
+OPENAI_API_KEY=your_openai_api_key_here
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MODEL=text-embedding-3-small
+```
+
+#### vLLM 사용 시 (자체 호스팅)
+
+vLLM 서버가 실행 중이어야 합니다. `.env` 파일에서 서버 URL을 설정합니다:
+
+```bash
+LLM_PROVIDER=vllm
+LLM_MODEL=your_model_name
+VLLM_BASE_URL=http://your-vllm-server:8000/v1
+EMBEDDING_PROVIDER=vllm
+EMBEDDING_MODEL=your_embedding_model
+VLLM_EMBEDDING_BASE_URL=http://your-vllm-server:8000/v1
 ```
 
 ## 실행
@@ -246,11 +314,24 @@ uv run alembic upgrade head
 
 ## 주요 개선사항
 
+### 다중 LLM Provider 지원
+
+- **유연한 Provider 선택**: Ollama, Groq, OpenAI, vLLM 등 다양한 LLM Provider를 지원합니다.
+- **독립적인 임베딩 설정**: LLM과 임베딩 모델을 서로 다른 Provider로 설정할 수 있습니다.
+- **환경 변수 기반 설정**: `.env` 파일에서 Provider를 쉽게 변경할 수 있습니다.
+
 ### 리포트 관리 시스템
 
 - **데이터베이스 저장**: 생성된 리포트는 `stock_reports` 테이블에 저장되어 재사용됩니다.
 - **일일 리포트 제한**: 각 티커당 하루에 하나의 리포트만 생성됩니다 (비즈니스 타임존 기준).
 - **캐시 활용**: 같은 날짜의 리포트 요청 시 데이터베이스에서 즉시 반환하여 LLM 호출 비용을 절감합니다.
+- **동시성 제어**: 티커별 락을 통한 동시성 제어로 불필요한 리포트 재생성을 방지합니다.
+
+### LangChain Agent 기반 리포트 생성
+
+- **동적 데이터 수집**: LangChain Agent와 Tool을 활용하여 필요한 데이터를 동적으로 수집합니다.
+- **SEC EDGAR 통합**: 기업 공시 정보를 자동으로 수집하여 리포트에 반영합니다.
+- **전문적인 리포트 형식**: 월스트리트 수준의 구조화된 리포트를 자동 생성합니다.
 
 ### 타임존 처리
 
@@ -261,6 +342,7 @@ uv run alembic upgrade head
 
 - 텔레그램 메시지 전송 시 배치 처리(20개씩)를 통해 API 제한을 준수합니다.
 - 티커별 락을 통한 동시성 제어로 불필요한 리포트 재생성을 방지합니다.
+- 배치 처리 설정을 통한 데이터 수집 최적화.
 
 ## 주의사항
 

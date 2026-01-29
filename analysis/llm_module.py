@@ -1,4 +1,6 @@
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 import os
 from langchain.agents import create_agent
 from langchain.tools import BaseTool
@@ -19,9 +21,30 @@ class LLMModule:
         model = os.getenv("LLM_MODEL", "qwen3:8b")
         if provider == "ollama":
             return ChatOllama(model=model, base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
+        elif provider == "groq":
+            groq_api_key = os.getenv("GROQ_API_KEY")
+            if not groq_api_key or not groq_api_key.strip():
+                self.logger.error(
+                    "GROQ_API_KEY environment variable is not set but 'groq' provider was selected.")
+                raise ValueError(
+                    "GROQ_API_KEY environment variable must be set when using the 'groq' provider.")
+            return ChatGroq(model=model, api_key=groq_api_key)
         elif provider == "openai":
-            # TODO: Implement OpenAI model
-            raise NotImplementedError("OpenAI model is not implemented")
+            openai_api_key = os.getenv("OPENAI_API_KEY")
+            if not openai_api_key or not openai_api_key.strip():
+                self.logger.error(
+                    "OPENAI_API_KEY environment variable is not set or is empty but 'openai' provider was selected.")
+                raise ValueError(
+                    "OPENAI_API_KEY environment variable must be set to a non-empty value when using the 'openai' provider.")
+            return ChatOpenAI(model=model, api_key=openai_api_key)
+        elif provider == "vllm":
+            vllm_base_url = os.getenv("VLLM_BASE_URL")
+            if not vllm_base_url or not vllm_base_url.strip():
+                self.logger.error(
+                    "VLLM_BASE_URL environment variable is not set but 'vllm' provider was selected.")
+                raise ValueError(
+                    "VLLM_BASE_URL environment variable must be set when using the 'vllm' provider.")
+            return ChatOpenAI(model=model, api_key="", base_url=vllm_base_url)
         elif provider == "anthropic":
             # TODO: Implement Anthropic model
             raise NotImplementedError("Anthropic model is not implemented")
