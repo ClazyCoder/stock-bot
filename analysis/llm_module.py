@@ -38,12 +38,13 @@ class LLMModule:
                     "OPENAI_API_KEY environment variable must be set when using the 'openai' provider.")
             return ChatOpenAI(model=model, api_key=openai_api_key)
         elif provider == "vllm":
-            if not os.getenv("VLLM_BASE_URL"):
+            vllm_base_url = os.getenv("VLLM_BASE_URL")
+            if not vllm_base_url:
                 self.logger.error(
                     "VLLM_BASE_URL environment variable is not set but 'vllm' provider was selected.")
                 raise ValueError(
                     "VLLM_BASE_URL environment variable must be set when using the 'vllm' provider.")
-            return ChatOpenAI(model=model, api_key="", base_url=os.getenv("VLLM_BASE_URL"))
+            return ChatOpenAI(model=model, api_key="", base_url=vllm_base_url)
         elif provider == "anthropic":
             # TODO: Implement Anthropic model
             raise NotImplementedError("Anthropic model is not implemented")
