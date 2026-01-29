@@ -39,7 +39,7 @@ class LLMModule:
             return ChatOpenAI(model=model, api_key=openai_api_key)
         elif provider == "vllm":
             vllm_base_url = os.getenv("VLLM_BASE_URL")
-            if not vllm_base_url:
+            if not vllm_base_url or not vllm_base_url.strip():
                 self.logger.error(
                     "VLLM_BASE_URL environment variable is not set but 'vllm' provider was selected.")
                 raise ValueError(
