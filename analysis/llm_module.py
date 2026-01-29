@@ -31,7 +31,7 @@ class LLMModule:
             return ChatGroq(model=model, api_key=groq_api_key)
         elif provider == "openai":
             openai_api_key = os.getenv("OPENAI_API_KEY")
-            if not openai_api_key:
+            if not openai_api_key or not openai_api_key.strip():
                 self.logger.error(
                     "OPENAI_API_KEY environment variable is not set but 'openai' provider was selected.")
                 raise ValueError(
