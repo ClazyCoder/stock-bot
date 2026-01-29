@@ -23,7 +23,7 @@ class LLMModule:
             return ChatOllama(model=model, base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
         elif provider == "groq":
             groq_api_key = os.getenv("GROQ_API_KEY")
-            if not groq_api_key:
+            if not groq_api_key or not groq_api_key.strip():
                 self.logger.error(
                     "GROQ_API_KEY environment variable is not set but 'groq' provider was selected.")
                 raise ValueError(
