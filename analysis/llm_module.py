@@ -31,11 +31,11 @@ class LLMModule:
             return ChatGroq(model=model, api_key=groq_api_key)
         elif provider == "openai":
             openai_api_key = os.getenv("OPENAI_API_KEY")
-            if not openai_api_key:
+            if not openai_api_key or not openai_api_key.strip():
                 self.logger.error(
-                    "OPENAI_API_KEY environment variable is not set but 'openai' provider was selected.")
+                    "OPENAI_API_KEY environment variable is not set or is empty but 'openai' provider was selected.")
                 raise ValueError(
-                    "OPENAI_API_KEY environment variable must be set when using the 'openai' provider.")
+                    "OPENAI_API_KEY environment variable must be set to a non-empty value when using the 'openai' provider.")
             return ChatOpenAI(model=model, api_key=openai_api_key)
         elif provider == "vllm":
             vllm_base_url = os.getenv("VLLM_BASE_URL")
