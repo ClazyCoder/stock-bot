@@ -38,24 +38,26 @@ class LLMService:
         # Use timezone-aware date to ensure consistent behavior regardless of server location
         today = get_today_in_business_timezone()
 
-        # Fast path: Check for existing report before acquiring lock to avoid lock contention
-        # in the common case where a report already exists
-        existing_report = await self.report_repository.get_stock_report_with_date(ticker, today)
-        if existing_report and not force_generate:
-            self.logger.info(
-                f"Found existing report for {ticker} on {today}, returning cached report")
-            return existing_report.report
+        if not force_generate:
+            # Fast path: Check for existing report before acquiring lock to avoid lock contention
+            # in the common case where a report already exists
+            existing_report = await self.report_repository.get_stock_report_with_date(ticker, today)
+            if existing_report:
+                self.logger.info(
+                    f"Found existing report for {ticker} on {today}, returning cached report")
+                return existing_report.report
 
         # Get ticker-specific lock to prevent concurrent generation
         ticker_lock = await self._get_ticker_lock(ticker)
 
         async with ticker_lock:
-            # Double-check after acquiring lock (another request may have completed)
-            existing_report = await self.report_repository.get_stock_report_with_date(ticker, today)
-            if existing_report and not force_generate:
-                self.logger.info(
-                    f"Found existing report for {ticker} on {today} (after lock acquisition), returning cached report")
-                return existing_report.report
+            if not force_generate:
+                # Double-check after acquiring lock (another request may have completed)
+                existing_report = await self.report_repository.get_stock_report_with_date(ticker, today)
+                if existing_report:
+                    self.logger.info(
+                        f"Found existing report for {ticker} on {today} (after lock acquisition), returning cached report")
+                    return existing_report.report
 
             # Generate new report
             self.logger.info(
