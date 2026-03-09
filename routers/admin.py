@@ -16,7 +16,11 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 async def verify_admin_token(admin_token: Optional[str] = Header(None)):
     if admin_token is None:
         raise HTTPException(status_code=403, detail="Access denied")
-    if not compare_digest(admin_token, os.getenv("ADMIN_TOKEN")):
+    env_admin_token = os.getenv("ADMIN_TOKEN")
+    if env_admin_token is None:
+        logger.error("ADMIN_TOKEN environment variable is not set")
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not compare_digest(admin_token, env_admin_token):
         raise HTTPException(status_code=403, detail="Access denied")
     return admin_token
 
