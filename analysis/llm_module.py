@@ -6,6 +6,7 @@ from langchain.agents import create_agent
 from langchain.tools import BaseTool
 from typing import List
 import logging
+import time
 from analysis.prompt_manager import PromptManager
 
 
@@ -86,25 +87,41 @@ class LLMModule:
         ]
         self.logger.info(
             "Invoking bullish and bearish agents with initial ticker prompt")
+        bullish_start_time = time.monotonic()
         bullish_report = await self.bullish_agent.ainvoke({"messages": messages})
+        bullish_elapsed = time.monotonic() - bullish_start_time
+        bullish_content = bullish_report['messages'][-1].content
         self.logger.info(
-            f"Bullish report : {bullish_report['messages'][-1].content}")
+            "Bullish agent completed: ticker=%s, chars=%d, elapsed=%.2fs",
+            ticker, len(bullish_content), bullish_elapsed)
+        self.logger.debug("Bullish report content: %s", bullish_content)
+
+        bearish_start_time = time.monotonic()
         bearish_report = await self.bearish_agent.ainvoke({"messages": messages})
+        bearish_elapsed = time.monotonic() - bearish_start_time
+        bearish_content = bearish_report['messages'][-1].content
         self.logger.info(
-            f"Bearish report : {bearish_report['messages'][-1].content}")
+            "Bearish agent completed: ticker=%s, chars=%d, elapsed=%.2fs",
+            ticker, len(bearish_content), bearish_elapsed)
+        self.logger.debug("Bearish report content: %s", bearish_content)
 
         messages = [
             {
                 "role": "user",
-                "content": f"Summarize the following reports: {bullish_report['messages'][-1].content} and {bearish_report['messages'][-1].content}"
+                "content": f"Summarize the following reports: {bullish_content} and {bearish_content}"
             }
         ]
 
+        moderator_start_time = time.monotonic()
         moderator_report = await self.moderator_agent.ainvoke({"messages": messages})
+        moderator_elapsed = time.monotonic() - moderator_start_time
+        moderator_content = moderator_report['messages'][-1].content
         self.logger.info(
-            f"Moderator report : {moderator_report['messages'][-1].content}")
-        self.logger.info("Report generated successfully")
-        return moderator_report['messages'][-1].content
+            "Moderator agent completed: ticker=%s, chars=%d, elapsed=%.2fs",
+            ticker, len(moderator_content), moderator_elapsed)
+        self.logger.debug("Moderator report content: %s", moderator_content)
+        self.logger.info("Intermediate report generated successfully for ticker=%s", ticker)
+        return moderator_content
 
     async def generate_report_with_ticker(self, ticker: str) -> str:
         """
@@ -119,8 +136,13 @@ class LLMModule:
             }
         ]
         self.logger.info("Prompt template built successfully")
+        report_start_time = time.monotonic()
         res = await self.report_agent.ainvoke({"messages": messages})
+        report_elapsed = time.monotonic() - report_start_time
+        final_content = res['messages'][-1].content
         self.logger.info(
-            f"Report : {res['messages'][-1].content}")
-        self.logger.info("Report generated successfully")
-        return res['messages'][-1].content
+            "Final report agent completed: ticker=%s, chars=%d, elapsed=%.2fs",
+            ticker, len(final_content), report_elapsed)
+        self.logger.debug("Final report content: %s", final_content)
+        self.logger.info("Report generated successfully for ticker=%s", ticker)
+        return final_content
