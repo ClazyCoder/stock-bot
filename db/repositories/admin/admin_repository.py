@@ -17,8 +17,12 @@ class AdminRepository(BaseRepository):
         async with self._get_session() as session:
             try:
                 result = await session.execute(text(query))
-                orm_results = result.fetchall()
-                return [row._asdict() for row in orm_results]
+                if result.returns_rows:
+                    orm_results = result.fetchall()
+                    return [row._asdict() for row in orm_results]
+                else:
+                    # Statement did not return rows (e.g., INSERT/UPDATE/DELETE, DDL)
+                    return []
             except Exception as e:
                 self.logger.error(
                     f"Error sending raw query: {e}", exc_info=True)
