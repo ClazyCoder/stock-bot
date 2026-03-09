@@ -19,7 +19,7 @@ async def verify_admin_token(admin_token: Optional[str] = Header(None)):
     env_admin_token = os.getenv("ADMIN_TOKEN")
     if env_admin_token is None:
         logger.error("ADMIN_TOKEN environment variable is not set")
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(status_code=500, detail="Server misconfigured: ADMIN_TOKEN is not set")
     if not compare_digest(admin_token, env_admin_token):
         raise HTTPException(status_code=403, detail="Access denied")
     return admin_token
