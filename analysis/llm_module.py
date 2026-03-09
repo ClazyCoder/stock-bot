@@ -1,6 +1,7 @@
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
+import asyncio
 import os
 from langchain.agents import create_agent
 from langchain.tools import BaseTool
@@ -85,11 +86,13 @@ class LLMModule:
             }
         ]
         self.logger.info(
-            "Invoking bullish and bearish agents with initial ticker prompt")
-        bullish_report = await self.bullish_agent.ainvoke({"messages": messages})
+            "Invoking bullish and bearish agents concurrently with initial ticker prompt")
+        bullish_report, bearish_report = await asyncio.gather(
+            self.bullish_agent.ainvoke({"messages": messages}),
+            self.bearish_agent.ainvoke({"messages": messages}),
+        )
         self.logger.info(
             f"Bullish report : {bullish_report['messages'][-1].content}")
-        bearish_report = await self.bearish_agent.ainvoke({"messages": messages})
         self.logger.info(
             f"Bearish report : {bearish_report['messages'][-1].content}")
 
