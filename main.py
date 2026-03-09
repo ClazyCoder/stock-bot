@@ -5,6 +5,7 @@ import logging
 import os
 import dotenv
 import routers.v1 as v1
+import routers.admin as admin_router
 from bot.telegram import TelegramBot
 from dependencies import get_user_data_service, get_llm_service
 from scheduler import setup_scheduler
@@ -78,6 +79,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(v1.router, prefix="/api")
+app.include_router(admin_router.router, prefix="/api")
 
 if __name__ == "__main__":
     ensure_logs_directory()
