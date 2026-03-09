@@ -81,7 +81,7 @@ class LLMModule:
                 "content": f"Write a report for the following ticker: {ticker}"
             }
         ]
-        self.logger.info("Prompt template built successfully")
+        self.logger.info("Invoking bullish and bearish agents with initial ticker prompt")
         bullish_report = await self.bullish_agent.ainvoke({"messages": messages})
         self.logger.info(
             f"Bullish report : {bullish_report['messages'][-1].content}")
