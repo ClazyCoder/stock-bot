@@ -178,3 +178,10 @@ async def get_report(ticker: str, llm_service: LLMService = Depends(get_llm_serv
                 status_code=500, detail="Failed to generate report")
     except HTTPException:
         raise
+    except Exception as e:
+        logger.error(
+            f"Error generating report for ticker {ticker}: {e}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {str(e)}"
+        )
