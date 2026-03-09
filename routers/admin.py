@@ -27,7 +27,11 @@ class AdminReportRequest(BaseModel):
 
 @router.post("/raw_sql", dependencies=[Depends(verify_admin_token)])
 async def send_raw_query(request: AdminReportRequest, admin_repository: AdminRepository = Depends(get_admin_repository)):
-    return await admin_repository.send_raw_query(request.query)
+    result = await admin_repository.send_raw_query(request.query)
+    if result is None:
+        # Avoid returning 200 OK with a null body when execution fails
+        raise HTTPException(status_code=500, detail="Failed to execute raw SQL query")
+    return result
 
 
 @router.get("/health_check", dependencies=[Depends(verify_admin_token)])
