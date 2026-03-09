@@ -1,17 +1,19 @@
 from db.repositories.base import BaseRepository
-from typing import List, Dict
+from typing import Any
 from sqlalchemy import text
 
 
 class AdminRepository(BaseRepository):
-    async def send_raw_query(self, query: str) -> List[Dict] | None:
-        '''
+    async def send_raw_query(self, query: str) -> list[dict[str, Any]] | None:
+        """
         Send a raw query to the database.
+
         Args:
             query: str - The query to send to the database.
+
         Returns:
-            List[Dict]: The result of the query.
-        '''
+            list[dict[str, Any]] | None: The result of the query, or None if an error occurs.
+        """
         async with self._get_session() as session:
             try:
                 result = await session.execute(text(query))
