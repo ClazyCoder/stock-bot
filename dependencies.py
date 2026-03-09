@@ -189,11 +189,11 @@ async def get_llm_service() -> LLMService:
         return _llm_service
 
 
-async def get_admin_report_repository() -> AdminRepository:
-    """Return singleton AdminReportRepository."""
-    global _admin_report_repository
-    if _admin_report_repository is None:
-        logger.info("Initializing AdminReportRepository singleton")
-        _admin_report_repository = AdminRepository(
+async def get_admin_repository() -> AdminRepository:
+    """Return singleton AdminRepository."""
+    global _admin_repository
+    if _admin_repository is None:
+        logger.info("Initializing AdminRepository singleton")
+        _admin_repository = AdminRepository(
             session_factory=AsyncSessionLocal)
-    return _admin_report_repository
+    return _admin_repository

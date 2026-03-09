@@ -5,7 +5,7 @@ from fastapi import Header
 import os
 from fastapi import HTTPException, Depends
 from secrets import compare_digest
-from dependencies import get_admin_report_repository
+from dependencies import get_admin_repository
 from db.repositories.admin.admin_repository import AdminRepository
 from pydantic import BaseModel, Field
 
@@ -26,8 +26,8 @@ class AdminReportRequest(BaseModel):
 
 
 @router.post("/raw_sql", dependencies=[Depends(verify_admin_token)])
-async def send_raw_query(request: AdminReportRequest, admin_report_repository: AdminRepository = Depends(get_admin_report_repository)):
-    return await admin_report_repository.send_raw_query(request.query)
+async def send_raw_query(request: AdminReportRequest, admin_repository: AdminRepository = Depends(get_admin_repository)):
+    return await admin_repository.send_raw_query(request.query)
 
 
 @router.get("/health_check", dependencies=[Depends(verify_admin_token)])
