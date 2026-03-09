@@ -25,7 +25,7 @@ class AdminReportRequest(BaseModel):
     query: str = Field(..., description="The query to send to the database")
 
 
-@router.post("/report", dependencies=[Depends(verify_admin_token)])
+@router.post("/raw_sql", dependencies=[Depends(verify_admin_token)])
 async def send_raw_query(request: AdminReportRequest, admin_report_repository: AdminRepository = Depends(get_admin_report_repository)):
     return await admin_report_repository.send_raw_query(request.query)
 
