@@ -40,7 +40,7 @@ _llm_service: LLMService | None = None
 _news_collector: INewsProvider | None = None
 _mcp_client: MultiServerMCPClient | None = None
 _mcp_tools: List[BaseTool] | None = None
-_admin_report_repository: AdminRepository | None = None
+_admin_repository: AdminRepository | None = None
 
 
 async def get_edgar_tools() -> List[BaseTool]:
