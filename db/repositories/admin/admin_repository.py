@@ -22,8 +22,11 @@ class AdminRepository(BaseRepository):
                     return [row._asdict() for row in orm_results]
                 else:
                     # Statement did not return rows (e.g., INSERT/UPDATE/DELETE, DDL)
+                    await session.commit()
                     return []
             except Exception as e:
+                # Roll back any uncommitted changes on error
+                await session.rollback()
                 self.logger.error(
                     f"Error sending raw query: {e}", exc_info=True)
                 return None
