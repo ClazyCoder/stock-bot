@@ -25,14 +25,17 @@ class LLMModule:
         self.logger.info("All agents built successfully")
 
     def _get_model_params(self):
-        temperature = os.getenv("LLM_TEMPERATURE", 1.0)
-        top_p = os.getenv("LLM_TOP_P", 0.95)
-        presence_penalty = os.getenv("LLM_PRESENCE_PENALTY", 1.5)
-        return {
-            "temperature": temperature,
-            "top_p": top_p,
-            "presence_penalty": presence_penalty
-        }
+        try:
+            temperature = float(os.getenv("LLM_TEMPERATURE", "1.0"))
+            top_p = float(os.getenv("LLM_TOP_P", "0.95"))
+            presence_penalty = float(os.getenv("LLM_PRESENCE_PENALTY", "1.5"))
+        except ValueError:
+            self.logger.error(
+                "Invalid LLM_TEMPERATURE, LLM_TOP_P, or LLM_PRESENCE_PENALTY environment variables. Using default values.")
+            temperature = 1.0
+            top_p = 0.95
+            presence_penalty = 1.5
+        return {"temperature": temperature, "top_p": top_p, "presence_penalty": presence_penalty}
 
     def _build_model(self):
         self.logger.info("Building model...")
@@ -81,7 +84,8 @@ class LLMModule:
                 "content": f"Write a report for the following ticker: {ticker}"
             }
         ]
-        self.logger.info("Invoking bullish and bearish agents with initial ticker prompt")
+        self.logger.info(
+            "Invoking bullish and bearish agents with initial ticker prompt")
         bullish_report = await self.bullish_agent.ainvoke({"messages": messages})
         self.logger.info(
             f"Bullish report : {bullish_report['messages'][-1].content}")
