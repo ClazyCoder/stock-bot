@@ -7,6 +7,8 @@ from services.stock_data_service import StockDataService
 from services.user_data_service import UserDataService
 from utils.common import validate_ticker, validate_query
 import logging
+from services.llm_service import LLMService
+from dependencies import get_llm_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=["v1"])
@@ -157,3 +159,22 @@ async def get_stock_news(ticker: str, query: str, stock_service: StockDataServic
             f"Error getting stock news for ticker {ticker}, query {query}: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/report")
+async def get_report(ticker: str, llm_service: LLMService = Depends(get_llm_service)):
+    validate_ticker(ticker)
+    logger.info(f"Getting report for ticker: {ticker}")
+    try:
+        report = await llm_service.generate_report_with_ticker(ticker)
+        if report:
+            return {
+                "success": True,
+                "data": report,
+            }
+        else:
+            logger.warning(f"Failed to generate report for ticker: {ticker}")
+            raise HTTPException(
+                status_code=500, detail="Failed to generate report")
+    except HTTPException:
+        raise
