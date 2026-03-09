@@ -22,7 +22,7 @@ class LLMModule:
             self.main_model, system_prompt=self.prompt_manager.get_prompt("moderator_agent"))
         self.report_agent = create_agent(
             self.main_model, system_prompt=self.prompt_manager.get_prompt("report_agent"))
-        self.logger.info(f"Agent built successfully")
+        self.logger.info("All agents built successfully")
 
     def _get_model_params(self):
         temperature = os.getenv("LLM_TEMPERATURE", 1.0)
