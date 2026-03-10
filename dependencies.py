@@ -178,8 +178,8 @@ async def get_llm_service() -> LLMService:
             local_tools = StockTools(
                 stock_repository=get_stock_repository()).get_tools()
             mcp_tools = await get_edgar_tools()
-            tools = local_tools + mcp_tools
-            llm_module = LLMModule(tools=tools)
+            llm_module = LLMModule(
+                stock_tools=local_tools, edgar_tools=mcp_tools)
             _llm_service = LLMService(
                 llm_module=llm_module,
                 stock_repository=get_stock_repository(),
