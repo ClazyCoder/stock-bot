@@ -1,5 +1,4 @@
 from analysis.llm_module import LLMModule
-from db.repositories.stock_repository import StockRepository
 from db.repositories.report_repository import ReportRepository
 from schemas.llm import StockReportCreate
 import logging
@@ -9,10 +8,9 @@ from utils.common import get_today_in_business_timezone
 
 
 class LLMService:
-    def __init__(self, llm_module: LLMModule, stock_repository: StockRepository, report_repository: ReportRepository):
+    def __init__(self, llm_module: LLMModule, report_repository: ReportRepository):
         self.logger = logging.getLogger(__name__)
         self.llm_module = llm_module
-        self.stock_repository = stock_repository
         self.report_repository = report_repository
         # Per-ticker locks to prevent race conditions in report generation
         self._report_locks: Dict[str, asyncio.Lock] = {}

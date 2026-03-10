@@ -176,13 +176,12 @@ async def get_llm_service() -> LLMService:
         if _llm_service is None:
             logger.info("Initializing LLMService singleton")
             local_tools = StockTools(
-                stock_repository=get_stock_repository()).get_tools()
+                stock_data_service=get_stock_service()).get_tools()
             mcp_tools = await get_edgar_tools()
             llm_module = LLMModule(
                 stock_tools=local_tools, edgar_tools=mcp_tools)
             _llm_service = LLMService(
                 llm_module=llm_module,
-                stock_repository=get_stock_repository(),
                 report_repository=get_report_repository()
             )
             logger.info("LLMService initialized successfully")
