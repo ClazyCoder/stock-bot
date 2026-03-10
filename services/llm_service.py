@@ -31,7 +31,6 @@ class LLMService:
         Uses per-ticker locking to prevent race conditions when multiple
         concurrent requests try to generate reports for the same ticker.
         """
-        self.logger.info(f"Generating report for {ticker}...")
 
         # Use timezone-aware date to ensure consistent behavior regardless of server location
         today = get_today_in_business_timezone()
