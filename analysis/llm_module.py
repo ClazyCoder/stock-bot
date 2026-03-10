@@ -18,7 +18,8 @@ class LLMModule:
     def __init__(self, stock_tools: List[BaseTool], edgar_tools: List[BaseTool]):
         self.logger = logging.getLogger(__name__)
         self.prompt_manager = PromptManager()
-        self.main_model = self._build_model(self._get_model_params())
+        self.translation_model = self._build_model(
+            {"temperature": 0.3, "top_p": 0.95, "presence_penalty": 1.5})
         self.fact_extractor_model = self._build_model(
             {"temperature": 0.0, "top_p": 0.95, "presence_penalty": 1.5})
         self.debate_model = self._build_model(
@@ -32,21 +33,8 @@ class LLMModule:
         self.moderator_agent = create_agent(
             self.fact_extractor_model, system_prompt=self.prompt_manager.get_prompt("moderator_agent"))
         self.report_agent = create_agent(
-            self.main_model, system_prompt=self.prompt_manager.get_prompt("report_agent"))
+            self.translation_model, system_prompt=self.prompt_manager.get_prompt("report_agent"))
         self.logger.info("All agents built successfully")
-
-    def _get_model_params(self):
-        try:
-            temperature = float(os.getenv("LLM_TEMPERATURE", "1.0"))
-            top_p = float(os.getenv("LLM_TOP_P", "0.95"))
-            presence_penalty = float(os.getenv("LLM_PRESENCE_PENALTY", "1.5"))
-        except ValueError:
-            self.logger.error(
-                "Invalid LLM_TEMPERATURE, LLM_TOP_P, or LLM_PRESENCE_PENALTY environment variables. Using default values.")
-            temperature = 1.0
-            top_p = 0.95
-            presence_penalty = 1.5
-        return {"temperature": temperature, "top_p": top_p, "presence_penalty": presence_penalty}
 
     def _build_model(self, params: dict):
         self.logger.info("Building model... with params: %s", params)
