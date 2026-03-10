@@ -53,7 +53,7 @@ class StockTools:
         self.logger.info(
             f"Getting stock data LLM context for {ticker}")
         try:
-            stock_data = await self.stock_data_service.get_stock_data(ticker)
+            stock_data = await self.stock_data_service.get_stock_data(ticker, 220)
             if not stock_data:
                 self.logger.warning(
                     f"No stock data found for ticker {ticker} when generating LLM context")

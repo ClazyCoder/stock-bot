@@ -158,6 +158,16 @@ class MarketSummary(BaseModel):
     current_ratio: Optional[float] = None
     quick_ratio: Optional[float] = None
 
+    analyst_target_mean: Optional[float] = None
+    analyst_target_high: Optional[float] = None
+    analyst_target_low: Optional[float] = None
+    analyst_recommendation: Optional[str] = None
+    number_of_analysts: Optional[int] = None
+
+    return_on_equity: Optional[float] = None
+    return_on_assets: Optional[float] = None
+    enterprise_to_ebitda: Optional[float] = None
+
     warning: Optional[str] = None
 
 
@@ -353,6 +363,15 @@ def build_market_summary(
         debt_to_equity=_safe_float(info.get("debtToEquity")),
         current_ratio=_safe_float(info.get("currentRatio")),
         quick_ratio=_safe_float(info.get("quickRatio")),
+        analyst_target_mean=_safe_float(info.get("targetMeanPrice")),
+        analyst_target_high=_safe_float(info.get("targetHighPrice")),
+        analyst_target_low=_safe_float(info.get("targetLowPrice")),
+        analyst_recommendation=info.get("recommendationKey"),
+        number_of_analysts=_safe_int(info.get("numberOfAnalystOpinions")),
+
+        return_on_equity=_safe_float(info.get("returnOnEquity")),
+        return_on_assets=_safe_float(info.get("returnOnAssets")),
+        enterprise_to_ebitda=_safe_float(info.get("enterpriseToEbitda")),
 
         warning=None,
     )

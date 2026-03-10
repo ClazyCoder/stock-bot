@@ -1,15 +1,17 @@
+from re import T
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 import asyncio
 import os
 from langchain.agents import create_agent
+from langchain.agents.structured_output import ToolStrategy
 from langchain.tools import BaseTool
 from typing import List
 import logging
 import time
 from analysis.prompt_manager import PromptManager
-from schemas.langchain import FactExtractionResult
+from schemas.langchain import FactExtractionResult, normalize_fact_extraction
 
 
 class LLMModule:
@@ -22,7 +24,7 @@ class LLMModule:
         self.debate_model = self._build_model(
             {"temperature": 0.7, "top_p": 0.95, "presence_penalty": 1.5})
         self.fact_extractor_agent = create_agent(
-            self.fact_extractor_model, system_prompt=self.prompt_manager.get_prompt("fact_extractor_agent"), tools=edgar_tools, response_format=FactExtractionResult)
+            self.fact_extractor_model, system_prompt=self.prompt_manager.get_prompt("fact_extractor_agent"), tools=edgar_tools, response_format=ToolStrategy(FactExtractionResult))
         self.bullish_agent = create_agent(
             self.debate_model, system_prompt=self.prompt_manager.get_prompt("bullish_agent"), tools=stock_tools)
         self.bearish_agent = create_agent(
@@ -94,6 +96,8 @@ class LLMModule:
         ]
         raw_fact_extraction_result = await self.fact_extractor_agent.ainvoke({"messages": messages})
         fact_extraction_result = raw_fact_extraction_result["structured_response"]
+        fact_extraction_result = normalize_fact_extraction(
+            fact_extraction_result)
         self.logger.info(
             "Fact extraction result: %s", fact_extraction_result.model_dump_json())
         self.logger.info(

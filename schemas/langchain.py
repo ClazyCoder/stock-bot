@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import List, Literal, Optional
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 UnitType = Literal[
@@ -116,35 +116,17 @@ class FactExtractionResult(BaseModel):
     major_risk_flags: List[RiskFlag] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)
 
-    @model_validator(mode="after")
-    def compute_derived_metrics(self) -> "FactExtractionResult":
-        def safe_div(a, b):
-            if a and b and a.value and b.value and b.value != 0:
-                return ExtractedMetric(
-                    value=round(a.value / b.value * 100, 2),
-                    unit="Percentage",
-                    period=a.period,
-                    fiscal_year=a.fiscal_year,
-                    source_text="Derived: computed from extracted values"
-                )
-            return None
 
-        if not self.gross_margin and self.gross_profit and self.revenue:
-            self.gross_margin = safe_div(self.gross_profit, self.revenue)
-        if not self.operating_margin and self.operating_income and self.revenue:
-            self.operating_margin = safe_div(
-                self.operating_income, self.revenue)
-        if not self.net_margin and self.net_income and self.revenue:
-            self.net_margin = safe_div(self.net_income, self.revenue)
-        if not self.capex and self.operating_cash_flow and self.free_cash_flow:
-            ocf = self.operating_cash_flow.value
-            fcf = self.free_cash_flow.value
-            if ocf and fcf:
-                self.capex = ExtractedMetric(
-                    value=round(ocf - fcf, 2),
-                    unit="USD",
-                    period=self.operating_cash_flow.period,
-                    fiscal_year=self.operating_cash_flow.fiscal_year,
-                    source_text="Derived: OCF minus FCF"
-                )
-        return self
+def normalize_fact_extraction(fact: FactExtractionResult) -> FactExtractionResult:
+    fields_to_normalize = [
+        'revenue', 'net_income', 'operating_cash_flow',
+        'free_cash_flow', 'total_debt', 'inventory',
+        'r_and_d_expense', 'share_repurchases', 'cash_and_equivalents', 'inventory_change'
+    ]
+    for field_name in fields_to_normalize:
+        field = getattr(fact, field_name)
+        if field and field.value and field.unit == "USD":
+            if field.value >= 1_000_000_000:
+                field.value = round(field.value / 1_000_000_000, 3)
+                field.unit = "USD_Billion"
+    return fact
