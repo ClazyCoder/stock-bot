@@ -166,7 +166,7 @@ async def get_report(ticker: str, llm_service: LLMService = Depends(get_llm_serv
     validate_ticker(ticker)
     logger.info(f"Getting report for ticker: {ticker}")
     try:
-        report = await llm_service.generate_report_with_ticker(ticker)
+        report = await llm_service.generate_report_with_ticker(ticker, force_generate=True)
         if report:
             return {
                 "success": True,

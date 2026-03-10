@@ -37,7 +37,7 @@ class StockDataService:
                 f"Saved stock data for {ticker}: {result} row(s) affected")
             return True
 
-    async def get_stock_data(self, ticker: str) -> List[StockPriceResponse] | None:
+    async def get_stock_data(self, ticker: str, count: int = None) -> List[StockPriceResponse] | None:
         """
         Get stock data from the database.
         Args:
@@ -47,7 +47,7 @@ class StockDataService:
         """
         self.logger.info(f"Getting stock data for ticker: {ticker}")
         try:
-            result = await self.stock_repository.get_stock_data(ticker)
+            result = await self.stock_repository.get_stock_data(ticker, count)
             if result:
                 self.logger.info(
                     f"Found {len(result)} stock data records for ticker: {ticker}")

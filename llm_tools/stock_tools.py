@@ -1,15 +1,14 @@
 import logging
-from db.repositories.stock_repository import StockRepository
 from typing import List
-from schemas.llm import StockPriceLLMContext
-from utils.formatter import to_csv_string
+from schemas.llm import StockPriceLLMContext, build_market_summary
 from langchain.tools import tool, BaseTool
+from services.stock_data_service import StockDataService
 
 
 class StockTools:
-    def __init__(self, stock_repository: StockRepository):
+    def __init__(self, stock_data_service: StockDataService):
         self.logger = logging.getLogger(__name__)
-        self.stock_repository = stock_repository
+        self.stock_data_service = stock_data_service
 
     async def get_stock_news_llm_context(self, ticker: str, query: str, top_k: int = 5, candidate_pool: int = 20) -> List[str]:
         """
@@ -25,7 +24,7 @@ class StockTools:
         self.logger.info(
             f"Getting stock news LLM context for {ticker} with query {query}, top_k={top_k}, candidate_pool={candidate_pool}")
         try:
-            stock_news = await self.stock_repository.get_stock_news(ticker, query, top_k, candidate_pool)
+            stock_news = await self.stock_data_service.get_stock_news(ticker, query, top_k, candidate_pool)
             if stock_news:
                 result = [
                     f"Title: {news.title}\nPublished at: {news.published_at}\nFull content: \n{'-'*100}\n{news.full_content}\n{'-'*100}" for news in stock_news]
@@ -43,7 +42,7 @@ class StockTools:
             )
             return []
 
-    async def get_stock_data_llm_context(self, ticker: str, count: int = 5) -> str | None:
+    async def get_stock_data_llm_context(self, ticker: str, count: int = 30) -> str | None:
         """
         Get stock data from the database and convert it to LLM context.
         Args:
@@ -55,17 +54,21 @@ class StockTools:
         self.logger.info(
             f"Getting stock data LLM context for {ticker} with count {count}")
         try:
-            stock_data = await self.stock_repository.get_stock_data(ticker)
+            stock_data = await self.stock_data_service.get_stock_data(ticker, count)
             if not stock_data:
                 self.logger.warning(
                     f"No stock data found for ticker {ticker} when generating LLM context")
                 return None
             stock_data_llm_context = [
-                StockPriceLLMContext.model_validate(data) for data in stock_data[-count:]]
-            csv_string = to_csv_string(stock_data_llm_context)
+                StockPriceLLMContext.model_validate(data) for data in stock_data]
+            stock_data_llm_context = sorted(
+                stock_data_llm_context,
+                key=lambda x: x.date
+            )
+            result = build_market_summary(stock_data_llm_context)
             self.logger.info(
                 f"Generated LLM context for ticker {ticker}: {len(stock_data_llm_context)} records")
-            return csv_string
+            return result.model_dump_json()
         except Exception as e:
             self.logger.error(
                 f"Error getting stock data LLM context for ticker {ticker}: {e}", exc_info=True)
