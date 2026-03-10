@@ -42,19 +42,18 @@ class StockTools:
             )
             return []
 
-    async def get_stock_data_llm_context(self, ticker: str, count: int = 30) -> str | None:
+    async def get_stock_data_llm_context(self, ticker: str) -> str | None:
         """
         Get stock data from the database and convert it to LLM context.
         Args:
             ticker (str): The ticker of the stock to get data for.
-            count (int): The number of data to get. from the latest data.
         Returns:
             str | None: The stock data for the given ticker in CSV string format. if no data is found, return None.
         """
         self.logger.info(
-            f"Getting stock data LLM context for {ticker} with count {count}")
+            f"Getting stock data LLM context for {ticker}")
         try:
-            stock_data = await self.stock_data_service.get_stock_data(ticker, count)
+            stock_data = await self.stock_data_service.get_stock_data(ticker)
             if not stock_data:
                 self.logger.warning(
                     f"No stock data found for ticker {ticker} when generating LLM context")
@@ -65,7 +64,8 @@ class StockTools:
                 stock_data_llm_context,
                 key=lambda x: x.date
             )
-            result = build_market_summary(stock_data_llm_context)
+            info = await self.stock_data_service.get_raw_stock_info(ticker)
+            result = build_market_summary(stock_data_llm_context, info)
             self.logger.info(
                 f"Generated LLM context for ticker {ticker}: {len(stock_data_llm_context)} records")
             return result.model_dump_json()

@@ -3,7 +3,7 @@ import asyncio
 import pandas as pd
 from collectors.interfaces import IStockProvider
 from schemas.stock import StockPriceCreate
-from typing import List, Union
+from typing import List, Union, Any
 import logging
 
 main_sectors = {
@@ -172,3 +172,13 @@ class StockDataCollector(IStockProvider):
         self.logger.info(
             f"Fetched stock price data: {len(results)} total records for {len(tickers_list)} ticker(s)")
         return results
+
+    async def fetch_stock_info(self, ticker: str) -> dict[str, Any] | None:
+        """
+        Fetch the raw stock info from yfinance.
+        Args:
+            ticker (str): The ticker of the stock to get info for.
+        Returns:
+            dict[str, Any] | None: The raw stock info for the given ticker.
+        """
+        return yf.Ticker(ticker).info

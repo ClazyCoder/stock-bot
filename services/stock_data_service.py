@@ -4,7 +4,7 @@ from db.repositories.stock_repository import StockRepository
 import logging
 from typing import List
 from schemas.stock import StockPriceResponse, StockNewsResponse
-from typing import Union
+from typing import Union, Any
 
 
 class StockDataService:
@@ -119,4 +119,22 @@ class StockDataService:
         except Exception as e:
             self.logger.error(
                 f"Error getting stock news for ticker {ticker} with query {query}: {e}", exc_info=True)
+            return None
+
+    async def get_raw_stock_info(self, ticker: str) -> dict[str, Any] | None:
+        """
+        Get raw stock info from yfinance.
+        Args:
+            ticker (str): The ticker of the stock to get info for.
+        Returns:
+            dict[str, Any] | None: The raw stock info for the given ticker.
+        """
+        try:
+            result = await self.collector.fetch_stock_info(ticker)
+            if result:
+                self.logger.info(f"Found raw stock info for {ticker}")
+                return result
+        except Exception as e:
+            self.logger.error(
+                f"Error getting raw stock info for {ticker}: {e}", exc_info=True)
             return None
