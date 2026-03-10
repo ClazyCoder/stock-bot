@@ -129,7 +129,7 @@ class StockRepository(BaseRepository):
                 await session.rollback()
                 return None
 
-    async def get_stock_data(self, ticker: str) -> List[StockPriceResponse] | None:
+    async def get_stock_data(self, ticker: str, count: int = None) -> List[StockPriceResponse] | None:
         """
         Get stock data from the database.
         Args:
@@ -139,7 +139,8 @@ class StockRepository(BaseRepository):
         """
         async with self._get_session() as session:
             try:
-                stmt = select(Stock).where(Stock.ticker == ticker)
+                stmt = select(Stock).where(Stock.ticker == ticker).order_by(
+                    Stock.trade_date.desc()).limit(count)
                 result = await session.execute(stmt)
                 orm_results = result.scalars().all()
                 stock_responses = [StockPriceResponse.model_validate(
