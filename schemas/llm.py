@@ -295,9 +295,9 @@ def build_market_summary(
     # If currentPrice from info differs from OHLCV last close, we still keep MA/RSI from OHLCV,
     # but trend classification / distance metrics use final_price to reflect the latest quote.
     if final_price != current_price:
-        if high_52w and high_52w != 0:
+        if pd.notna(high_52w) and high_52w != 0:
             distance_from_52w_high_pct = (final_price / high_52w - 1.0) * 100.0
-        if low_52w and low_52w != 0:
+        if pd.notna(low_52w) and low_52w != 0:
             distance_from_52w_low_pct = (final_price / low_52w - 1.0) * 100.0
 
     return MarketSummary(
