@@ -274,11 +274,11 @@ def build_market_summary(
     low_52w = float(low.tail(252).min()) if len(df) >= 1 else None
 
     distance_from_52w_high_pct = None
-    if high_52w and high_52w != 0:
+    if high_52w is not None and pd.notna(high_52w) and high_52w != 0:
         distance_from_52w_high_pct = (current_price / high_52w - 1.0) * 100.0
 
     distance_from_52w_low_pct = None
-    if low_52w and low_52w != 0:
+    if low_52w is not None and pd.notna(low_52w) and low_52w != 0:
         distance_from_52w_low_pct = (current_price / low_52w - 1.0) * 100.0
 
     ma_20 = float(last["ma_20"]) if pd.notna(last["ma_20"]) else None
