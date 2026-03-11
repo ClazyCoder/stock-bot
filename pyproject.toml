@@ -1,7 +1,7 @@
 [project]
 name = "stock-bot"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.1.1"
+description = "주식 데이터와 뉴스를 수집하고, LLM 기반 투자 리포트를 생성해 텔레그램과 API로 제공하는 자동화 서비스"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
