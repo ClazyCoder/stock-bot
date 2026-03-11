@@ -48,7 +48,7 @@ class StockTools:
         Args:
             ticker (str): The ticker of the stock to get data for.
         Returns:
-            str | None: The stock data for the given ticker in CSV string format. if no data is found, return None.
+            str | None: The stock data for the given ticker in JSON string format (as returned by MarketSummary.model_dump_json()). If no data is found, returns None.
         """
         self.logger.info(
             f"Getting stock data LLM context for {ticker}")
