@@ -104,6 +104,8 @@ class LLMModule:
             structured_fact_extraction_result)
         self.logger.debug(
             "Normalized fact extraction result: %s", normalized_fact_extraction_result)
+        self.logger.info(
+            f"normalized_fact_extraction_result_completed: ticker={ticker}, chars={len(normalized_fact_extraction_result.model_dump_json())}")
 
         self.logger.info(
             "Invoking bullish and bearish agents concurrently with initial ticker prompt")
