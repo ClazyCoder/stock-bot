@@ -151,6 +151,9 @@ curl "http://localhost:8000/api/v1/report?ticker=AAPL"
 - `GET /api/admin/health_check`
 - `POST /api/admin/raw_sql`
 
+> [!WARNING]
+> `/api/admin/*` 엔드포인트는 **로컬호스트(127.0.0.1)에서만** 접근 가능합니다. 외부 네트워크에서의 요청은 403으로 거부됩니다.
+
 `/api/admin/*` 호출 시 요청 헤더에 `admin_token`이 필요합니다.
 
 ```bash
