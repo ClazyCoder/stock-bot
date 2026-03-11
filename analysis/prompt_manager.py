@@ -16,6 +16,10 @@ class PromptManager:
             return self.moderator_agent_prompt
         elif prompt_name == "report_agent":
             return self.report_agent_prompt
+        elif prompt_name == "fact_extractor_agent":
+            return self.fact_extractor_prompt
+        elif prompt_name == "fact_parser_agent":
+            return self.fact_parser_prompt
         else:
             raise ValueError(f"Invalid prompt name: {prompt_name}")
 
@@ -26,6 +30,8 @@ class PromptManager:
             "bearish_agent_prompt": "bearish_agent.md",
             "moderator_agent_prompt": "moderator_agent.md",
             "report_agent_prompt": "report_agent.md",
+            "fact_extractor_prompt": "fact_extractor.md",
+            "fact_parser_prompt": "fact_parser.md"
         }
 
         for attr_name, filename in prompts.items():
@@ -40,7 +46,8 @@ class PromptManager:
                     path,
                     exc,
                 )
-                raise RuntimeError(f"Failed to load prompt file '{path}'") from exc
+                raise RuntimeError(
+                    f"Failed to load prompt file '{path}'") from exc
         self.logger.info("Prompts loaded successfully")
 
     def reload(self) -> None:

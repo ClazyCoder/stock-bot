@@ -1,6 +1,6 @@
 from schemas.stock import StockPriceCreate
 from typing import List
-from typing import Protocol, Union
+from typing import Protocol, Union, Any
 
 
 class IStockProvider(Protocol):
@@ -15,3 +15,12 @@ class IStockProvider(Protocol):
         """
         pass
 
+    async def fetch_stock_info(self, ticker: str) -> dict[str, Any] | None:
+        """
+        Fetch the raw stock info from provider.
+        Args:
+            ticker (str): The ticker of the stock to get info for.
+        Returns:
+            dict[str, Any] | None: The raw stock info for the given ticker.
+        """
+        pass

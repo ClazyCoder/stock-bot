@@ -1,3 +1,4 @@
+from re import T
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
@@ -9,41 +10,37 @@ from typing import List
 import logging
 import time
 from analysis.prompt_manager import PromptManager
+from schemas.langchain import FactExtractionResult, normalize_fact_extraction
 
 
 class LLMModule:
-    def __init__(self, tools: List[BaseTool]):
+    def __init__(self, stock_tools: List[BaseTool], edgar_tools: List[BaseTool]):
         self.logger = logging.getLogger(__name__)
         self.prompt_manager = PromptManager()
-        self.main_model = self._build_model()
+        self.translation_model = self._build_model(
+            {"temperature": 0.3, "top_p": 0.1, "max_completion_tokens": 8192})
+        self.fact_extractor_model = self._build_model(
+            {"temperature": 0.6, "top_p": 0.95, "max_completion_tokens": 16384, "extra_body": {"top_k": 20}})
+        self.debate_model = self._build_model(
+            {"temperature": 0.7, "top_p": 0.95, "max_completion_tokens": 8192})
+        self.fact_extractor_agent = create_agent(
+            self.fact_extractor_model, system_prompt=self.prompt_manager.get_prompt("fact_extractor_agent"), tools=edgar_tools)
+        self.fact_parser = create_agent(
+            self.fact_extractor_model, system_prompt=self.prompt_manager.get_prompt("fact_parser_agent"), response_format=FactExtractionResult)
         self.bullish_agent = create_agent(
-            self.main_model, system_prompt=self.prompt_manager.get_prompt("bullish_agent"), tools=tools)
+            self.debate_model, system_prompt=self.prompt_manager.get_prompt("bullish_agent"), tools=stock_tools)
         self.bearish_agent = create_agent(
-            self.main_model, system_prompt=self.prompt_manager.get_prompt("bearish_agent"), tools=tools)
+            self.debate_model, system_prompt=self.prompt_manager.get_prompt("bearish_agent"), tools=stock_tools)
         self.moderator_agent = create_agent(
-            self.main_model, system_prompt=self.prompt_manager.get_prompt("moderator_agent"))
+            self.fact_extractor_model, system_prompt=self.prompt_manager.get_prompt("moderator_agent"))
         self.report_agent = create_agent(
-            self.main_model, system_prompt=self.prompt_manager.get_prompt("report_agent"))
+            self.translation_model, system_prompt=self.prompt_manager.get_prompt("report_agent"))
         self.logger.info("All agents built successfully")
 
-    def _get_model_params(self):
-        try:
-            temperature = float(os.getenv("LLM_TEMPERATURE", "1.0"))
-            top_p = float(os.getenv("LLM_TOP_P", "0.95"))
-            presence_penalty = float(os.getenv("LLM_PRESENCE_PENALTY", "1.5"))
-        except ValueError:
-            self.logger.error(
-                "Invalid LLM_TEMPERATURE, LLM_TOP_P, or LLM_PRESENCE_PENALTY environment variables. Using default values.")
-            temperature = 1.0
-            top_p = 0.95
-            presence_penalty = 1.5
-        return {"temperature": temperature, "top_p": top_p, "presence_penalty": presence_penalty}
-
-    def _build_model(self):
-        self.logger.info("Building model...")
+    def _build_model(self, params: dict):
+        self.logger.info("Building model... with params: %s", params)
         provider = os.getenv("LLM_PROVIDER", "ollama")
         model = os.getenv("LLM_MODEL", "qwen3:8b")
-        params = self._get_model_params()
         if provider == "ollama":
             return ChatOllama(model=model, base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
         elif provider == "groq":
@@ -83,22 +80,55 @@ class LLMModule:
         messages = [
             {
                 "role": "user",
-                "content": f"Write a report for the following ticker: {ticker}"
+                "content": f"Extract canonical financial and market facts for the following ticker: {ticker}"
             }
         ]
+        raw_fact_extraction_result = await self.fact_extractor_agent.ainvoke({"messages": messages})
+        fact_extraction_result = raw_fact_extraction_result['messages'][-1].content
+        self.logger.debug(
+            "Fact extraction result: %s", fact_extraction_result)
+        self.logger.info(
+            f"fact_extraction_completed: ticker={ticker}, chars={len(fact_extraction_result)}")
+        self.logger.info(
+            "Invoking fact parser...")
+        parser_result = await self.fact_parser.ainvoke({"messages": [
+            {
+                "role": "user",
+                "content": f"{fact_extraction_result}"
+            }
+        ]})
+        structured_fact_extraction_result = parser_result["structured_response"]
+        self.logger.debug(
+            "Fact parser result: %s", structured_fact_extraction_result)
+        normalized_fact_extraction_result = normalize_fact_extraction(
+            structured_fact_extraction_result)
+        self.logger.debug(
+            "Normalized fact extraction result: %s", normalized_fact_extraction_result)
+        self.logger.info(
+            f"normalized_fact_extraction_result_completed: ticker={ticker}, chars={len(normalized_fact_extraction_result.model_dump_json())}")
+
         self.logger.info(
             "Invoking bullish and bearish agents concurrently with initial ticker prompt")
+        messages = [
+            {
+                "role": "user",
+                "content": f"Write a report for the following ticker: {ticker} and the following facts: {normalized_fact_extraction_result.model_dump_json()}"
+            }
+        ]
         bullish_report, bearish_report = await asyncio.gather(
             self.bullish_agent.ainvoke({"messages": messages}),
             self.bearish_agent.ainvoke({"messages": messages}),
         )
+        bullish_content = bullish_report['messages'][-1].content
+        bearish_content = bearish_report['messages'][-1].content
         self.logger.info(
-            f"Bullish report : {bullish_report['messages'][-1].content}")
+            "Bullish agent completed: ticker=%s, chars=%d",
+            ticker, len(bullish_content))
+        self.logger.debug("Bullish report content: %s", bullish_content)
         self.logger.info(
-            "Bearish agent completed: ticker=%s, chars=%d, elapsed=%.2fs",
-            ticker, len(bearish_content), bearish_elapsed)
+            "Bearish agent completed: ticker=%s, chars=%d",
+            ticker, len(bearish_content))
         self.logger.debug("Bearish report content: %s", bearish_content)
-
         messages = [
             {
                 "role": "user",
@@ -114,7 +144,8 @@ class LLMModule:
             "Moderator agent completed: ticker=%s, chars=%d, elapsed=%.2fs",
             ticker, len(moderator_content), moderator_elapsed)
         self.logger.debug("Moderator report content: %s", moderator_content)
-        self.logger.info("Intermediate report generated successfully for ticker=%s", ticker)
+        self.logger.info(
+            "Intermediate report generated successfully for ticker=%s", ticker)
         return moderator_content
 
     async def generate_report_with_ticker(self, ticker: str) -> str:
