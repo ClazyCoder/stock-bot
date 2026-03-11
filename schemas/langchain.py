@@ -141,7 +141,7 @@ def normalize_fact_extraction(fact: FactExtractionResult) -> FactExtractionResul
         field = getattr(fact, field_name)
         if field and field.value is not None:
             field.value = clean_value(field.value)
-            if field.value and field.unit == "USD":
+            if field.value is not None and isinstance(field.value, (int, float)) and field.unit == "USD":
                 if field.value >= 1_000_000_000:
                     field.value = round(field.value / 1_000_000_000, 3)
                     field.unit = "USD_Billion"
