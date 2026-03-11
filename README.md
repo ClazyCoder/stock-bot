@@ -21,6 +21,21 @@
 > [!NOTE]
 > 앱을 실행하면 API 서버만 뜨는 것이 아니라, 텔레그램 봇과 스케줄러도 함께 시작됩니다.
 
+## Agent Flow
+
+```text
+Data Collectors
+     ↓
+Fact Extractor (tool calling)
+     ↓
+Fact Parser (schema normalization)
+     ↓
+  ┌─────────┐
+  ↓         ↓
+Bull      Bear
+  ↓         ↓
+  └── Moderator ──→ Report → Translator → Telegram
+```
 ## 빠른 시작
 
 ### 1) 의존성 설치
