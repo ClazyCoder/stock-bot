@@ -181,4 +181,14 @@ class StockDataCollector(IStockProvider):
         Returns:
             dict[str, Any] | None: The raw stock info for the given ticker.
         """
-        return yf.Ticker(ticker).info
+        loop = asyncio.get_running_loop()
+        self.logger.info(f"Fetching stock info for ticker: {ticker}")
+        try:
+            info = await loop.run_in_executor(
+                None, lambda: yf.Ticker(ticker).info)
+        except Exception as e:
+            self.logger.error(
+                f"Error fetching stock info for ticker {ticker}: {e}", exc_info=True)
+            return None
+        self.logger.info(f"Fetched stock info for ticker: {ticker}")
+        return info
