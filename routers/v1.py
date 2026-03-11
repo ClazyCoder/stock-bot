@@ -162,11 +162,11 @@ async def get_stock_news(ticker: str, query: str, stock_service: StockDataServic
 
 
 @router.get("/report")
-async def get_report(ticker: str, llm_service: LLMService = Depends(get_llm_service)):
+async def get_report(ticker: str, force_generate: bool = False, llm_service: LLMService = Depends(get_llm_service)):
     validate_ticker(ticker)
-    logger.info(f"Getting report for ticker: {ticker}")
+    logger.info(f"Getting report for ticker: {ticker}, force_generate: {force_generate}")
     try:
-        report = await llm_service.generate_report_with_ticker(ticker, force_generate=True)
+        report = await llm_service.generate_report_with_ticker(ticker, force_generate=force_generate)
         if report:
             return {
                 "success": True,
