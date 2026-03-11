@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 from pydantic import BaseModel, Field
-
+import re
 
 UnitType = Literal[
     "USD",
@@ -37,7 +37,7 @@ FilingType = Literal[
 
 class ExtractedMetric(BaseModel):
     """Canonical representation of a single extracted financial or market metric."""
-    value: Optional[float] = Field(
+    value: Optional[Union[float, str]] = Field(
         default=None,
         description="Numeric value of the metric. Null if unavailable or non-numeric."
     )
@@ -117,16 +117,33 @@ class FactExtractionResult(BaseModel):
     warnings: List[str] = Field(default_factory=list)
 
 
+def clean_value(val: Union[float, str]) -> Optional[float]:
+    if val is None:
+        return None
+    if isinstance(val, (float, int)):
+        return float(val)
+
+    clean_str = re.sub(r'[^\d.-]', '', str(val))
+    try:
+        return float(clean_str)
+    except ValueError:
+        return None
+
+
 def normalize_fact_extraction(fact: FactExtractionResult) -> FactExtractionResult:
     fields_to_normalize = [
         'revenue', 'net_income', 'operating_cash_flow',
         'free_cash_flow', 'total_debt', 'inventory',
         'r_and_d_expense', 'share_repurchases', 'cash_and_equivalents', 'inventory_change'
     ]
+
     for field_name in fields_to_normalize:
         field = getattr(fact, field_name)
-        if field and field.value and field.unit == "USD":
-            if field.value >= 1_000_000_000:
-                field.value = round(field.value / 1_000_000_000, 3)
-                field.unit = "USD_Billion"
+        if field and field.value is not None:
+            field.value = clean_value(field.value)
+            if field.value and field.unit == "USD":
+                if field.value >= 1_000_000_000:
+                    field.value = round(field.value / 1_000_000_000, 3)
+                    field.unit = "USD_Billion"
+
     return fact

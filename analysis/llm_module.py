@@ -5,7 +5,6 @@ from langchain_groq import ChatGroq
 import asyncio
 import os
 from langchain.agents import create_agent
-from langchain.agents.structured_output import ToolStrategy
 from langchain.tools import BaseTool
 from typing import List
 import logging
@@ -19,13 +18,15 @@ class LLMModule:
         self.logger = logging.getLogger(__name__)
         self.prompt_manager = PromptManager()
         self.translation_model = self._build_model(
-            {"temperature": 0.3, "top_p": 0.95, "presence_penalty": 1.5})
+            {"temperature": 0.3, "top_p": 0.1, "max_completion_tokens": 8192})
         self.fact_extractor_model = self._build_model(
-            {"temperature": 0.0, "top_p": 0.95, "presence_penalty": 1.5})
+            {"temperature": 0.6, "top_p": 0.95, "max_completion_tokens": 16384, "extra_body": {"top_k": 20}})
         self.debate_model = self._build_model(
-            {"temperature": 0.7, "top_p": 0.95, "presence_penalty": 1.5})
+            {"temperature": 0.7, "top_p": 0.95, "max_completion_tokens": 8192})
         self.fact_extractor_agent = create_agent(
-            self.fact_extractor_model, system_prompt=self.prompt_manager.get_prompt("fact_extractor_agent"), tools=edgar_tools, response_format=ToolStrategy(FactExtractionResult))
+            self.fact_extractor_model, system_prompt=self.prompt_manager.get_prompt("fact_extractor_agent"), tools=edgar_tools)
+        self.fact_parser = create_agent(
+            self.fact_extractor_model, system_prompt=self.prompt_manager.get_prompt("fact_parser_agent"), response_format=FactExtractionResult)
         self.bullish_agent = create_agent(
             self.debate_model, system_prompt=self.prompt_manager.get_prompt("bullish_agent"), tools=stock_tools)
         self.bearish_agent = create_agent(
@@ -79,21 +80,37 @@ class LLMModule:
         messages = [
             {
                 "role": "user",
-                "content": f"Extract canonical financial and market facts from the provided source textfor the following ticker: {ticker}"
+                "content": f"Extract canonical financial and market facts for the following ticker: {ticker}"
             }
         ]
         raw_fact_extraction_result = await self.fact_extractor_agent.ainvoke({"messages": messages})
-        fact_extraction_result = raw_fact_extraction_result["structured_response"]
-        fact_extraction_result = normalize_fact_extraction(
-            fact_extraction_result)
+        fact_extraction_result = raw_fact_extraction_result['messages'][-1].content
+        self.logger.debug(
+            "Fact extraction result: %s", fact_extraction_result)
         self.logger.info(
-            "Fact extraction result: %s", fact_extraction_result.model_dump_json())
+            f"fact_extraction_completed: ticker={ticker}, chars={len(fact_extraction_result)}")
+        self.logger.info(
+            "Invoking fact parser...")
+        parser_result = await self.fact_parser.ainvoke({"messages": [
+            {
+                "role": "user",
+                "content": f"{fact_extraction_result}"
+            }
+        ]})
+        structured_fact_extraction_result = parser_result["structured_response"]
+        self.logger.debug(
+            "Fact parser result: %s", structured_fact_extraction_result)
+        normalized_fact_extraction_result = normalize_fact_extraction(
+            structured_fact_extraction_result)
+        self.logger.debug(
+            "Normalized fact extraction result: %s", normalized_fact_extraction_result)
+
         self.logger.info(
             "Invoking bullish and bearish agents concurrently with initial ticker prompt")
         messages = [
             {
                 "role": "user",
-                "content": f"Write a report for the following ticker: {ticker} and the following facts: {fact_extraction_result.model_dump_json()}"
+                "content": f"Write a report for the following ticker: {ticker} and the following facts: {normalized_fact_extraction_result.model_dump_json()}"
             }
         ]
         bullish_report, bearish_report = await asyncio.gather(
@@ -105,9 +122,11 @@ class LLMModule:
         self.logger.info(
             "Bullish agent completed: ticker=%s, chars=%d",
             ticker, len(bullish_content))
+        self.logger.debug("Bullish report content: %s", bullish_content)
         self.logger.info(
             "Bearish agent completed: ticker=%s, chars=%d",
             ticker, len(bearish_content))
+        self.logger.debug("Bearish report content: %s", bearish_content)
         messages = [
             {
                 "role": "user",
