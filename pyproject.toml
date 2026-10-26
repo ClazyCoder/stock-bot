@@ -8,6 +8,7 @@ dependencies = [
     "aiosqlite>=0.21.0",
     "alembic>=1.17.2",
     "asyncpg>=0.31.0",
+    "curl-cffi==0.17.0",
     "edgartools[ai]>=5.0.2",
     "fastapi>=0.124.0",
     "langchain>=1.1.2",
@@ -25,7 +26,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.44",
     "trafilatura>=2.0.0",
     "uvicorn[standard]>=0.38.0",
-    "yfinance>=0.2.66",
+    "yfinance==1.5.2",
 ]
 
 [tool.pytest.ini_options]
